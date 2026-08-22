@@ -1,0 +1,14 @@
+# Arduino IDE / arduino-cli build output
+build/
+*.hex
+*.elf
+*.eep
+
+# Host test binaries
+/tmp/mqb_klemmen_test
+test/t
+a.out
+
+# Editors
+.vscode/
+.DS_Store
