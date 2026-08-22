@@ -14,20 +14,55 @@
 
 ### arduino-cli
 
+No root needed — arduino-cli installs into your home directory:
+
 ```sh
+mkdir -p ~/.local/bin
+curl -fsSL https://downloads.arduino.cc/arduino-cli/arduino-cli_latest_Linux_64bit.tar.gz \
+  | tar xz -C ~/.local/bin arduino-cli
+```
+
+Most distributions already put `~/.local/bin` on the PATH from `~/.profile`; if
+`arduino-cli version` is not found, open a new login shell.
+
+```sh
+arduino-cli core update-index
 arduino-cli core install arduino:avr
-arduino-cli lib install "mcp_can"
+arduino-cli lib install "mcp_can"          # by coryjfowler -- check the author
+```
+
+Then build, flash and monitor:
+
+```sh
 arduino-cli compile --fqbn arduino:avr:uno .
 arduino-cli upload  --fqbn arduino:avr:uno -p /dev/ttyACM0 .
 arduino-cli monitor -p /dev/ttyACM0 -c baudrate=115200
 ```
 
-On Linux, add yourself to the serial group once if uploads fail with a
-permission error, then log out and back in:
+`arduino-cli board list` shows connected boards and their ports. If uploads fail
+with a permission error, add yourself to the serial group once, then log out and
+back in:
 
 ```sh
 sudo usermod -aG dialout "$USER"
 ```
+
+### Verifying without a board
+
+```sh
+./check.sh
+```
+
+Runs the host tests and then a real AVR compile with `--warnings all`. A clean
+run ends with the footprint:
+
+```
+Sketch uses 8118 bytes (25%) of program storage space. Maximum is 32256 bytes.
+Global variables use 562 bytes (27%) of dynamic memory, leaving 1486 bytes...
+```
+
+RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
+per entry.
 
 ## First run
 
