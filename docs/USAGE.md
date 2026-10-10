@@ -390,11 +390,12 @@ power-up and drifts with the AVR's ceramic resonator.
 ```
 
 builds the simulator and serves it at <http://127.0.0.1:8515/>, on this
-machine only. It needs `g++`, `python3` and `arduino-cli`; no board.
+machine only. It needs only `g++` and `python3`: no board, no arduino-cli and
+no Arduino libraries.
 
-What runs is the sketch itself, not a copy of its logic: `arduino-cli`
-preprocesses `can-emulator.ino` and `g++` compiles the result against the
-stand-ins in `sim/mock/`. So the menu, the icons, the counters and the timing
+What runs is the sketch itself, not a copy of its logic: `can-emulator.ino`
+gets the function prototypes an Arduino build would add, and `g++` compiles
+the result against the stand-ins in `sim/mock/`. So the menu, the icons, the counters and the timing
 of the display are the firmware's own. What is simulated is everything around
 it:
 
