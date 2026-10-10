@@ -7,6 +7,10 @@ build/
 # Simulator build and its EEPROM file
 sim/build/
 
+# The case generator's build output
+case/gen/bin/
+case/gen/obj/
+
 # Host test binaries
 /tmp/mqb_klemmen_test
 test/t

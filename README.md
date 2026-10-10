@@ -173,6 +173,22 @@ Klemme 50. The derivation is written up in
    `Ign on`. Hold the button for the menu: see
    [USAGE.md](docs/USAGE.md#the-button-and-the-menu).
 
+## Case
+
+A two-part printed case, drawn for [HelCAD](https://sihilisko.com/helcad/):
+the boards and their wiring inside, the display's window the only thing on the
+outside, one hole in the lower side for the CAN pair, the supply and the
+button's wires. The lid and the boards snap in; there are no screws. It
+measures 96 × 119.5 × 35 mm.
+
+![The closed case in HelCAD](docs/img/case-closed.png)
+
+![The case with the lid's layer off: Uno, CAN module and display in place](docs/img/case-open.png)
+
+The HelCAD drawing, the two STL files and the program that generates them are
+in [`case/`](case/README.md). It has not been printed yet; that page lists
+what to measure first.
+
 ## Simulator
 
 The sketch also runs on a PC, with the LCD drawn in a browser and a simulated
@@ -204,14 +220,16 @@ their neighbours. The same checksum self-test also runs on the Arduino at boot.
 ## Layout
 
 ```
-check.sh             host tests + AVR compile; run this to verify a change
-can-emulator.ino     scheduler, button, serial console, sniffer, MCP2515 setup
+check.sh             host tests, AVR compile, simulator screen test: run this to verify a change
+can-emulator.ino     scheduler, button and menu, LCD, serial console, sniffer, MCP2515 setup
 config.h             all pin, timing and bitrate constants
 mqb_klemmen.{h,cpp}  Klemmen_Status_01 (0x3C0) and the checksum
 mqb_mib.{h,cpp}      Dimmung_01, Diagnose_01, generic little-endian bit packer
 test/                host test harness with an Arduino.h shim
+sim/                 the simulator: the sketch on a PC, the LCD in a browser
+case/                the printed case: HelCAD drawing, STL files, generator
 docs/                hardware, usage and protocol documentation
-docs/img/            the wiring drawings (SVG)
+docs/img/            the wiring drawings (SVG), the bench photo, pictures of the case
 ```
 
 The `mqb_*` files are free of Arduino dependencies so they stay host-testable.
