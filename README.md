@@ -11,6 +11,12 @@ listen-only mode, all without a laptop. A built-in sniffer, with a
 listen-only mode that transmits nothing, lets you capture what a real car sends
 and check your assumptions against it.
 
+<img src="docs/img/bench-photo.jpg" width="520" alt="The emulator on the bench: a CH340 Uno clone, the MCP2515 module with its 8 MHz crystal, and the 16×2 LCD reading KL15 ON, tx 2461, err 0">
+
+The build on the bench, sending ignition on to a J533 gateway: Uno clone at the
+top, the MCP2515 module with the CAN pair on its screw terminal at the right,
+the LCD and its contrast potentiometer at the bottom.
+
 ```
    ┌─────────┐  SPI   ┌──────────┐  CAN   ┌──────────────────┐
    │ Arduino ├───────►│ MCP2515  ├───────►│ module under test│
