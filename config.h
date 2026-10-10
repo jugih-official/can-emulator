@@ -51,6 +51,39 @@
 // each, so the 100 ms CAN cycle does not notice.
 #define LCD_REFRESH_MS     250
 
+// --- What is read from the bus -------------------------------------------------
+// Supply voltage, shown permanently on the home screen. It is taken from one
+// byte of a frame some unit broadcasts:  volts = (byte * MV_PER_BIT + OFFSET) / 1000.
+// The default is a CANDIDATE, not a confirmed signal: a J533 gateway sent
+// 0x663 with 0x78 (120) in byte 0 in one bench capture, the supply voltage at
+// that moment was not noted, and no public DBC names that frame. Until it has been checked -- turn the supply up and
+// down and watch the value follow -- leave VOLTAGE_VERIFIED at 0 and the
+// display marks the value with '~'.
+#define ENABLE_VOLTAGE        1
+#define VOLTAGE_CAN_ID        0x663
+#define VOLTAGE_BYTE          0
+#define VOLTAGE_MV_PER_BIT    100
+#define VOLTAGE_OFFSET_MV     0
+#define VOLTAGE_VERIFIED      0
+#define VOLTAGE_STALE_MS      3000    // no frame for this long: "--.-V"
+#define VOLTAGE_LOW_DV        115     // below 11.5 V the battery icon blinks
+
+// A diagnostic frame (0x700..0x7FF) keeps the tester icon on this long. A
+// tester sends "tester present" every 2 s.
+#define TESTER_HOLD_MS        3000
+
+// Who is awake: units sending network management, 29-bit ID 0x1B0000xx with
+// xx the unit's node address, about every 200 ms.
+#define NM_ID_BASE            0x1B000000UL
+#define NM_MAX_NODES          6
+#define NM_AWAKE_MS           3000
+
+// Learning view in the bus monitor: bytes that change during the first period
+// on a page are taken as changing by themselves; afterwards a byte that
+// changes blinks for this many display refreshes.
+#define LEARN_BASELINE_MS     3000
+#define LEARN_BLINK_REFRESHES 12
+
 // --- Timing -----------------------------------------------------------------
 // Klemmen_Status_01 is a 100 ms cyclic message. Drift beyond roughly +/-10%
 // makes some gateways flag the sender as faulty, so keep this at 100.

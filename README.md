@@ -7,7 +7,9 @@ body control module, steering column module (J527) or immobiliser present.
 Ignition is toggled with a push button on the Arduino or over a serial console,
 and a 16×2 LCD shows the state and the counters. Holding the button opens a
 menu on the LCD: the other terminals, dimming, the clock, a bus monitor and
-listen-only mode, all without a laptop. A built-in sniffer, with a
+listen-only mode, all without a laptop. The bus monitor also lists which
+units are awake and has a learning view that shows which byte of a message
+reacts to what you do. A built-in sniffer, with a
 listen-only mode that transmits nothing, lets you capture what a real car sends
 and check your assumptions against it.
 
@@ -98,8 +100,9 @@ terminal; and the plain 16-pin 1602A display hanging from the analog header.
 D11, D12 and D13 are the Uno's hardware SPI pins and cannot be moved; D10, D2
 and the LCD pins are `MCP_CS_PIN`, `MCP_INT_PIN` and `LCD_*_PIN` in
 [`config.h`](config.h). The LCD is optional (`ENABLE_LCD 0` without one). It
-shows `KL15 ON` or `KL15 OFF` with the X and 50 flags on its first line and
-`tx 123456 err  0` on its second — in listen-only mode, what it hears instead.
+shows `KL15 ON` or `KL15 OFF` and the supply voltage on its first line, and
+on its second four icons — Klemme 30, 15, 58 and a diagnostic tester — with
+the frame counters.
 The LCD's and the module's 5 V and GND all come from the Uno's one 5V pin and
 its GND pins: share them with a breadboard rail or a splitter. Two things to
 check on the module before the first upload: the **crystal** (`8.000` →

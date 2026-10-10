@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 13148 bytes (40%) of program storage space. Maximum is 32256 bytes.
-Global variables use 694 bytes (33%) of dynamic memory, leaving 1354 bytes...
+Sketch uses 14900 bytes (46%) of program storage space. Maximum is 32256 bytes.
+Global variables use 756 bytes (36%) of dynamic memory, leaving 1292 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -122,6 +122,9 @@ sniffing a real car.
 
 ```
   5F0 / 6B2: ours / bus sends it, ours off
+  voltage  : 12.0 V (source not verified)
+  tester   : present
+  awake    : 10
   tx ok    : 317
   tx err   : 0
   rx frames: 506
@@ -137,6 +140,9 @@ sniffing a real car.
 - `rx 29-bit` — frames with an extended ID, which on MQB is network management
   (`0x1B0000xx`) and some `0x17xxxxxx` messages. They are counted here and
   shown by `r`, but the `p` table holds 11-bit IDs only.
+- `voltage`, `tester`, `awake` — the same three things the display shows: the
+  supply voltage read from the bus, whether a tester is talking, and the node
+  addresses of the units sending network management.
 - `chip` — read from the MCP2515. `tec` / `rec` are the CAN transmit and receive
   error counters; `tec` climbing means frames are not being acknowledged.
   `eflg` bits `0x40` / `0x80` mean a received frame was lost because the sketch
@@ -189,16 +195,34 @@ counters, its error flags in hex and the number of re-inits, as explained under
 
 ### Bus monitor
 
-The first page is the summary, then one page per 11-bit ID in the order they
-were first seen:
+The first page is the summary, the second says who is awake, then comes one
+page per 11-bit ID in the order they were first seen:
 
 ```
 BUS    85 fps       frames per second, all IDs
 ids 13 ext    84    11-bit IDs seen, and 29-bit frames received
 
+awake  2            units sending network management right now
+10 5F               their node addresses, in hex
+
 3DC   49ms  3/13    ID, time since its previous frame, page
 FF01000000010000    its latest payload, eight bytes as hex
 ```
+
+**Who is awake.** Every MQB unit that is awake sends a network-management
+frame about five times a second, with the 29-bit ID `0x1B0000xx`; `xx` is the
+unit's node address. `10` is the gateway. A unit drops off the list 3 s after
+its last frame (`NM_AWAKE_MS`). The list only listens, it asks nothing, so it
+is safe next to a tester. It holds six units and shows five, with a `+` for
+more.
+
+**Learning view.** Each ID page shows which byte of the payload reacts to what
+you do. For the first 3 s on a page the top line reads `learn`: bytes that
+change during that time change by themselves, counters and checksums, and are
+left alone from then on. After that, a byte that changes blinks for 3 s. So:
+open the page, wait for `learn` to give way to the interval, press the button
+on the radio or turn the knob, and watch which byte blinks. A short press goes
+to the next ID and starts over; coming back to an ID learns it afresh.
 
 It reads the same table as `p`, so `c` on the console empties it, and it holds
 at most `SNIFFER_MAX_IDS` IDs. It works in listen-only mode too, which makes
@@ -214,12 +238,32 @@ A 16×2 LCD on **A0–A5** (`ENABLE_LCD`, on by default) shows the state without
 laptop. The home screen:
 
 ```
-KL15 ON   X  50     Klemme 15 on or off; X and 50 appear while those are set
-tx 123456 err  0    frames sent, and frames the controller could not send
+KL15 ON  X~12.3V    Klemme 15 on or off, X while Klemme X is set, supply voltage
+BKLT 123456 e  0    four icons, frames sent, frames the controller could not send
 ```
 
-In listen-only mode the first line reads `LISTEN-ONLY` and the second
-`rx 123456 ids 12`: frames and distinct IDs seen. `CHECKSUM FAIL` or
+The first line reads `CRANKING` while Klemme 50 is held. The four icons are
+drawn on the glass as a battery, a key, a lamp and a plug; each is a dash while
+it does not apply:
+
+| Icon | Terminal | Shown when |
+|---|---|---|
+| Battery | Klemme 30 | A supply voltage is being read from the bus. It blinks below 11.5 V (`VOLTAGE_LOW_DV`). |
+| Key | Klemme 15 | The emulator is sending ignition on. In listen-only: the car's own `0x3C0` says ignition on. |
+| Lamp | Klemme 58 | The dimming message `0x5F0` is on the bus, the emulator's or another unit's. |
+| Plug | — | A diagnostic tester is talking: a frame in `0x700`–`0x7FF` within the last 3 s. |
+
+**The voltage** is read from the bus, not measured by the Arduino: one byte of
+a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and
+`VOLTAGE_MV_PER_BIT`. The default, byte 0 of `0x663` at 0.1 V per bit, is a
+candidate and has not been confirmed, which is why the value carries a `~`.
+To confirm it, turn the bench supply up and down and watch the display follow;
+then set `VOLTAGE_VERIFIED 1` and the `~` goes. If it does not follow, find the
+right byte with the learning view, changing the supply voltage as the thing
+you do. `--.-V` means the frame is not on the bus.
+
+In listen-only mode the first line reads `LISTEN` and the second ends in
+`123456 i 12`: frames and distinct IDs seen. `CHECKSUM FAIL` or
 `MCP2515 FAILED` takes the first line when boot found that problem. The glass
 is refreshed every 250 ms (`LCD_REFRESH_MS`) and only the characters that
 changed are written, so the CAN cycle does not notice it. An LED on D6 can show
@@ -326,6 +370,14 @@ All tunables live in [`config.h`](../config.h).
 | `LCD_REFRESH_MS` | 250 | Display refresh period |
 | `ENABLE_STATUS_LED` | 0 | LED on `STATUS_LED_PIN` showing Klemme 15 |
 | `SNIFFER_MAX_IDS` | 24 | RAM cost is 12 bytes each |
+| `ENABLE_VOLTAGE` | 1 | Show the supply voltage read from the bus |
+| `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` | `0x663`, 0 | Where the voltage is read. A candidate until confirmed. |
+| `VOLTAGE_MV_PER_BIT`, `VOLTAGE_OFFSET_MV` | 100, 0 | Its scaling |
+| `VOLTAGE_VERIFIED` | 0 | 1 removes the `~` in front of the value |
+| `VOLTAGE_LOW_DV` | 115 | Below this, in tenths of a volt, the battery icon blinks |
+| `TESTER_HOLD_MS` | 3000 | How long a diagnostic frame keeps the plug icon on |
+| `NM_MAX_NODES`, `NM_AWAKE_MS` | 6, 3000 | Size and memory of the who-is-awake list |
+| `LEARN_BASELINE_MS` | 3000 | The learning view's settling time on a page |
 
 To set the MIB's starting clock, edit the defaults in `ClockState`
 (`mqb_mib.h`). There is no RTC, so the time restarts from those values on every
@@ -358,6 +410,8 @@ The same checksum self-test runs on the Arduino at boot.
 | Erratic comms, occasional frames | Termination. Measure CANH–CANL: should be ~60 Ω unpowered. |
 | Garbage on serial | Monitor not at 115200. |
 | LCD blank, or one row of boxes | Contrast: adjust V0 (trimmer, or 1–2 kΩ to GND). Boxes on one row only means it never initialised: check RS, E, D4–D7 and that RW is on GND. |
+| Voltage shows `--.-V` | The frame in `VOLTAGE_CAN_ID` is not on this bus. Without a gateway there is none. |
+| Voltage does not follow the supply | The candidate frame is wrong for this car: find the byte with the learning view. |
 | LCD shows garbage | D4–D7 in the wrong order, or a loose E wire. |
 | Clock wrong on MIB | Expected — starts from the `ClockState` defaults each boot. |
 | Sniffer shows nothing | CANH/CANL swapped, or wrong bus, or bitrate mismatch. |

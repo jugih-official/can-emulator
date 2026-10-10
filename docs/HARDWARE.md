@@ -162,6 +162,9 @@ Checked on this bench:
 
 Not checked yet:
 
+- The supply voltage on the display. It is read from byte 0 of `0x663`, which
+  held `0x78` (120) in one capture on this bench. The supply voltage was not
+  noted at the time, so that is a guess from one number, not a decoded signal. Turn the supply and see whether the display follows.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.

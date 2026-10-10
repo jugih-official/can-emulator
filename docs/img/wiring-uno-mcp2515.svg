@@ -100,8 +100,8 @@
 <g font-size="8.5" fill="#fff" text-anchor="end"><text transform="translate(299.0,721) rotate(-90)">VSS</text><text transform="translate(314.6,721) rotate(-90)">VDD</text><text transform="translate(330.1,721) rotate(-90)">V0</text><text transform="translate(345.6,721) rotate(-90)">RS</text><text transform="translate(361.2,721) rotate(-90)">RW</text><text transform="translate(376.8,721) rotate(-90)">E</text><text transform="translate(392.3,721) rotate(-90)">D0</text><text transform="translate(407.9,721) rotate(-90)">D1</text><text transform="translate(423.4,721) rotate(-90)">D2</text><text transform="translate(439.0,721) rotate(-90)">D3</text><text transform="translate(454.5,721) rotate(-90)">D4</text><text transform="translate(470.1,721) rotate(-90)">D5</text><text transform="translate(485.6,721) rotate(-90)">D6</text><text transform="translate(501.1,721) rotate(-90)">D7</text><text transform="translate(516.7,721) rotate(-90)">A</text><text transform="translate(532.2,721) rotate(-90)">K</text></g>
 <rect x="262" y="752" width="460" height="140" rx="3" fill="#161616"/>
 <rect x="290" y="768" width="404" height="108" rx="2" fill="#1a3a8a"/>
-<text x="492" y="814" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">KL15 ON   X  50 </text>
-<text x="492" y="856" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">tx 123456 err  0</text>
+<text x="492" y="814" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">KL15 ON    12.3V</text>
+<text x="492" y="856" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">■■■■ 123456 e  0</text>
 <text x="492" y="910" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle">1602A</text>
 </g>
 

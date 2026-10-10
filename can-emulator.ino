@@ -44,12 +44,23 @@ static ClockState   g_clock;
 static uint32_t g_nextDimmungAt  = 0;
 static uint32_t g_nextDiagnoseAt = 0;
 static uint32_t g_nextClockAt    = 0;
+#endif
 // When something else on the bus last sent these IDs (0 = never). A gateway
 // sends both itself; two senders of one ID with different payloads collide,
 // so ours stand back for as long as the other one is heard.
 static uint32_t g_dimmungHeardAt  = 0;
 static uint32_t g_diagnoseHeardAt = 0;
-#endif
+
+// --- what the bus tells us ---------------------------------------------------
+// All "when last seen" stamps are millis() | 1, so that 0 can mean never.
+static uint32_t g_testerAt  = 0;      // a diagnostic frame, 0x700..0x7FF
+static uint32_t g_busKlAt   = 0;      // someone else's Klemmen_Status_01
+static bool     g_busKl15   = false;  // ... and the Klemme 15 bit in it
+static uint32_t g_voltAt    = 0;      // the supply voltage frame
+static uint8_t  g_voltDv    = 0;      // supply voltage in tenths of a volt
+// Units heard sending network management, by the low byte of 0x1B0000xx.
+static uint8_t  g_nmNode[NM_MAX_NODES];
+static uint32_t g_nmSeenAt[NM_MAX_NODES];
 
 static uint32_t g_nextKlemmenAt = 0;
 static uint32_t g_kl50EndsAt    = 0;
@@ -102,6 +113,18 @@ static uint8_t  g_monPage  = 0;
 static uint8_t  g_monDlc   = 0xFF;   // 0xFF: nothing seen since the page was opened
 static uint8_t  g_monData[8];
 static uint16_t g_monDelta = 0;
+// Learning view. For the first LEARN_BASELINE_MS on a page, bytes that change
+// are noted as changing by themselves (counters, checksums) and left alone;
+// after that a byte that changes blinks for a while.
+static uint32_t g_monBaseUntil = 0;
+static uint8_t  g_monNoise = 0;      // one bit per byte: changes by itself
+static uint8_t  g_monHot[8];         // display refreshes left to blink
+static bool     g_blink = false;
+#define MON_FIRST_ID_PAGE 2          // page 0 summary, page 1 who is awake
+#define ICON_BATTERY 1
+#define ICON_KEY     2
+#define ICON_LAMP    3
+#define ICON_PLUG    4
 static uint16_t g_fps      = 0;
 static uint16_t g_fpsCount = 0;
 static uint32_t g_nextFpsAt = 0;
@@ -292,11 +315,22 @@ static void pulseKl50() {
   g_kl50EndsAt  = millis() + KL50_PULSE_MS;
 }
 
-#if ENABLE_MIB_MESSAGES
-static bool heardRecently(uint32_t at) {
-  return at != 0 && millis() - at < MIB_YIELD_MS;
+// For the "when last seen" stamps: seen, and no longer than ms ago.
+static bool recent(uint32_t at, uint16_t ms) {
+  return at != 0 && millis() - at < ms;
 }
-#endif
+
+static void noteNmNode(uint8_t node, uint32_t now) {
+  uint8_t slot = NM_MAX_NODES;
+  for (uint8_t i = 0; i < NM_MAX_NODES; i++) {
+    bool live = recent(g_nmSeenAt[i], NM_AWAKE_MS);
+    if (live && g_nmNode[i] == node) { slot = i; break; }
+    if (!live && slot == NM_MAX_NODES) slot = i;
+  }
+  if (slot == NM_MAX_NODES) return;      // table full of live units
+  g_nmNode[slot]   = node;
+  g_nmSeenAt[slot] = now | 1;
+}
 
 static void sendKlemmenStatus() {
   uint8_t frame[MQB_DLC_KLEMMEN_STATUS_01];
@@ -418,14 +452,28 @@ static void serviceSniffer() {
 #endif
   // The table holds 11-bit IDs; a 29-bit one folded into it would pose as
   // some other message.
-  if (extended) { g_rxExtended++; return; }
-
   uint32_t now = millis();
+  if (extended) {
+    g_rxExtended++;
+    if ((id & 0x1FFFFF00UL) == NM_ID_BASE) noteNmNode((uint8_t)id, now);
+    return;
+  }
+
   uint16_t sid = (uint16_t)id;
-#if ENABLE_MIB_MESSAGES
   // The controller does not receive its own frames, so these are someone else's.
   if (sid == MQB_ID_DIMMUNG_01)  g_dimmungHeardAt  = now | 1;
   if (sid == MQB_ID_DIAGNOSE_01) g_diagnoseHeardAt = now | 1;
+  if (sid >= 0x700)              g_testerAt        = now | 1;
+  if (sid == MQB_ID_KLEMMEN_STATUS_01 && dlc >= 3) {
+    g_busKl15 = buf[2] & 0x02;
+    g_busKlAt = now | 1;
+  }
+#if ENABLE_VOLTAGE
+  if (sid == VOLTAGE_CAN_ID && dlc > VOLTAGE_BYTE) {
+    uint32_t mv = (uint32_t)buf[VOLTAGE_BYTE] * VOLTAGE_MV_PER_BIT + VOLTAGE_OFFSET_MV;
+    g_voltDv = mv > 25500 ? 255 : (uint8_t)(mv / 100);
+    g_voltAt = now | 1;
+  }
 #endif
 
   IdStat *st = NULL;
@@ -448,7 +496,19 @@ static void serviceSniffer() {
       if (d > st->maxDelta) st->maxDelta = (uint16_t)d;
     }
 #if ENABLE_LCD
-    if (g_monPage > 0 && st == &g_stats[g_monPage - 1]) {
+    if (g_monPage >= MON_FIRST_ID_PAGE && st == &g_stats[g_monPage - MON_FIRST_ID_PAGE]) {
+      if (g_monDlc == 0xFF) {            // first frame on this page
+        g_monBaseUntil = now + LEARN_BASELINE_MS;
+        g_monNoise = 0;
+        memset(g_monHot, 0, sizeof g_monHot);
+      } else {
+        bool baseline = (int32_t)(now - g_monBaseUntil) < 0;
+        for (uint8_t i = 0; i < dlc && i < g_monDlc; i++) {
+          if (buf[i] == g_monData[i]) continue;
+          if (baseline) g_monNoise |= (uint8_t)(1 << i);
+          else if (!(g_monNoise & (1 << i))) g_monHot[i] = LEARN_BLINK_REFRESHES;
+        }
+      }
       g_monDelta = st->count > 0 ? (uint16_t)d : 0;
       g_monDlc   = dlc;
       memcpy(g_monData, buf, dlc);
@@ -494,10 +554,26 @@ static void printStatus() {
   Serial.println(g_clock.second);
   Serial.print(F("  dimming  : ")); Serial.println(g_dimmung.kl58xd);
   Serial.print(F("  5F0 / 6B2: "));
-  Serial.print(heardRecently(g_dimmungHeardAt) ? F("bus sends it, ours off") : F("ours"));
+  Serial.print(recent(g_dimmungHeardAt, MIB_YIELD_MS) ? F("bus sends it, ours off") : F("ours"));
   Serial.print(F(" / "));
-  Serial.println(heardRecently(g_diagnoseHeardAt) ? F("bus sends it, ours off") : F("ours"));
+  Serial.println(recent(g_diagnoseHeardAt, MIB_YIELD_MS) ? F("bus sends it, ours off") : F("ours"));
 #endif
+#if ENABLE_VOLTAGE
+  Serial.print(F("  voltage  : "));
+  if (recent(g_voltAt, VOLTAGE_STALE_MS)) {
+    Serial.print(g_voltDv / 10); Serial.print('.'); Serial.print(g_voltDv % 10);
+    Serial.println(VOLTAGE_VERIFIED ? F(" V") : F(" V (source not verified)"));
+  } else {
+    Serial.println(F("no frame"));
+  }
+#endif
+  Serial.print(F("  tester   : ")); Serial.println(recent(g_testerAt, TESTER_HOLD_MS) ? F("present") : F("-"));
+  Serial.print(F("  awake    :"));
+  for (uint8_t i = 0; i < NM_MAX_NODES; i++) {
+    if (!recent(g_nmSeenAt[i], NM_AWAKE_MS)) continue;
+    Serial.print(' '); Serial.print(g_nmNode[i], HEX);
+  }
+  Serial.println();
   Serial.print(F("  tx ok    : ")); Serial.println(g_txOk);
   Serial.print(F("  tx err   : ")); Serial.println(g_txErr);
   Serial.print(F("  rx frames: ")); Serial.println(g_rxCount);
@@ -541,7 +617,12 @@ static void serviceSerial() {
 #if ENABLE_LCD
     case 'v':
       for (uint8_t row = 0; row < 2; row++) {
-        Serial.print('|'); Serial.write((const uint8_t *)g_lcdShown[row], 16); Serial.println('|');
+        Serial.print('|');
+        for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
+          char c = g_lcdShown[row][i];
+          Serial.print(c >= ICON_BATTERY && c <= ICON_PLUG ? "BKLT"[c - ICON_BATTERY] : c);
+        }
+        Serial.println('|');
       }
       break;
 #endif
@@ -613,27 +694,67 @@ static void lcdTwoDigits(char *dst, uint8_t v) {
   dst[1] = (char)('0' + v % 10);
 }
 
-//   KL15 ON   X  50     terminal state, X and 50 while those are set
-//   tx 123456 err  0    frames sent, and frames the controller could not send
-// Listen-only shows what is on the bus instead, and a failed boot check takes
-// the first line.
+// The supply voltage as six characters: " 12.3V", or "~12.3V" while the frame
+// it is read from has not been confirmed for this car (VOLTAGE_VERIFIED).
+static void lcdVoltage(char *dst) {
+#if ENABLE_VOLTAGE
+  if (!recent(g_voltAt, VOLTAGE_STALE_MS)) {
+    memcpy_P(dst, PSTR(" --.-V"), 6);
+    return;
+  }
+  dst[0] = VOLTAGE_VERIFIED ? ' ' : '~';
+  lcdNumber(dst + 1, 2, g_voltDv / 10);
+  dst[3] = '.';
+  dst[4] = (char)('0' + g_voltDv % 10);
+  dst[5] = 'V';
+#else
+  (void)dst;
+#endif
+}
+
+//   KL15 ON  X~12.3V    terminal state, X while set, supply voltage
+//   BKLT 123456 e  0    four icons, frames sent, frames that could not be sent
+// The icons, each a dash while it does not apply:
+//   B battery  Klemme 30: a supply voltage is being read; blinks when it is low
+//   K key      Klemme 15: ignition on, ours or in listen-only the car's
+//   L lamp     Klemme 58: the dimming message is on the bus
+//   T plug     a diagnostic tester is talking
+// Listen-only shows frames received and the number of IDs instead, and a
+// failed boot check takes the first line.
 static void lcdHome(char *top, char *bottom) {
   if (!g_selfTestOk)     lcdText(top, PSTR("CHECKSUM FAIL"));
   else if (!g_busOk)     lcdText(top, PSTR("MCP2515 FAILED"));
-  else if (g_listenOnly) lcdText(top, PSTR("LISTEN-ONLY"));
   else {
-    lcdText(top, g_state.kl_15 ? PSTR("KL15 ON") : PSTR("KL15 OFF"));
-    if (g_state.kl_x)  top[10] = 'X';
-    if (g_state.kl_50) { top[13] = '5'; top[14] = '0'; }
+    lcdText(top, g_listenOnly ? PSTR("LISTEN")
+               : g_state.kl_50 ? PSTR("CRANKING")
+               : g_state.kl_15 ? PSTR("KL15 ON") : PSTR("KL15 OFF"));
+    if (g_state.kl_x) top[9] = 'X';
+    lcdVoltage(top + 10);
   }
 
+  bool ignition = g_listenOnly ? (g_busKl15 && recent(g_busKlAt, 1000))
+                               : (g_state.kl_15 && g_busOk);
+  bool lamp = recent(g_dimmungHeardAt, MIB_YIELD_MS);
+#if ENABLE_MIB_MESSAGES
+  if (g_state.kl_15 && g_busOk && !g_listenOnly) lamp = true;   // ours is going out
+#endif
+  lcdText(bottom, PSTR("----"));
+#if ENABLE_VOLTAGE
+  if (recent(g_voltAt, VOLTAGE_STALE_MS)) {
+    bottom[0] = (g_voltDv < VOLTAGE_LOW_DV && g_blink) ? ' ' : (char)ICON_BATTERY;
+  }
+#endif
+  if (ignition) bottom[1] = (char)ICON_KEY;
+  if (lamp)     bottom[2] = (char)ICON_LAMP;
+  if (recent(g_testerAt, TESTER_HOLD_MS)) bottom[3] = (char)ICON_PLUG;
+
   if (g_listenOnly) {
-    lcdText(bottom, PSTR("rx        ids"));
-    lcdNumber(bottom + 3, 6, g_rxCount);
+    lcdNumber(bottom + 5, 6, g_rxCount);
+    bottom[12] = 'i';
     lcdNumber(bottom + 14, 2, g_statCount);
   } else {
-    lcdText(bottom, PSTR("tx        err"));
-    lcdNumber(bottom + 3, 6, g_txOk);
+    lcdNumber(bottom + 5, 6, g_txOk);
+    bottom[12] = 'e';
     lcdNumber(bottom + 13, 3, g_txErr);
   }
 }
@@ -702,11 +823,14 @@ static void lcdMenu(char *top, char *bottom) {
 
 //   BUS    87 fps       frames per second on the bus
 //   ids 16 ext    40    11-bit IDs seen, and 29-bit frames
-// then one page per ID:
+// then who is awake, from network management:
+//   awake 2             units sending 0x1B0000xx
+//   10 5F               their node addresses
+// then one page per ID, which is also the learning view:
 //   3DC   50ms  2/16    the ID, time since its previous frame, position
-//   0011223344556677    its latest payload
+//   0011223344556677    its latest payload; a byte that just changed blinks
 static void lcdMonitor(char *top, char *bottom) {
-  if (g_monPage > g_statCount) { g_monPage = 0; g_monDlc = 0xFF; }
+  if (g_monPage >= MON_FIRST_ID_PAGE + g_statCount) { g_monPage = 0; g_monDlc = 0xFF; }
   if (g_monPage == 0) {
     lcdText(top, PSTR("BUS       fps"));
     lcdNumber(top + 4, 5, g_fps);
@@ -715,21 +839,45 @@ static void lcdMonitor(char *top, char *bottom) {
     lcdNumber(bottom + 11, 5, g_rxExtended);
     return;
   }
-  uint16_t id = g_stats[g_monPage - 1].id;
+  if (g_monPage == 1) {
+    uint8_t n = 0;
+    lcdText(top, PSTR("awake"));
+    lcdText(bottom, PSTR(""));
+    for (uint8_t i = 0; i < NM_MAX_NODES; i++) {
+      if (!recent(g_nmSeenAt[i], NM_AWAKE_MS)) continue;
+      if (n < 5) {
+        bottom[3 * n]     = hexDigit(g_nmNode[i] >> 4);
+        bottom[3 * n + 1] = hexDigit(g_nmNode[i]);
+      } else {
+        bottom[15] = '+';
+      }
+      n++;
+    }
+    lcdNumber(top + 6, 2, n);
+    if (n == 0) lcdText(bottom, PSTR("nobody"));
+    return;
+  }
+  uint8_t index = g_monPage - MON_FIRST_ID_PAGE;
+  uint16_t id = g_stats[index].id;
   lcdText(top, PSTR("        ms"));
   top[0] = hexDigit((uint8_t)(id >> 8));
   top[1] = hexDigit((uint8_t)(id >> 4));
   top[2] = hexDigit((uint8_t)id);
   top[13] = '/';
-  lcdNumber(top + 11, 2, g_monPage);
+  lcdNumber(top + 11, 2, index + 1);
   lcdNumber(top + 14, 2, g_statCount);
   if (g_monDlc == 0xFF) {
     lcdText(bottom, PSTR("waiting"));
     return;
   }
-  lcdNumber(top + 3, 5, g_monDelta);
+  if ((int32_t)(millis() - g_monBaseUntil) < 0) memcpy_P(top + 3, PSTR("  learn"), 7);
+  else lcdNumber(top + 3, 5, g_monDelta);
   lcdText(bottom, PSTR(""));
   for (uint8_t i = 0; i < g_monDlc; i++) {
+    if (g_monHot[i]) {
+      g_monHot[i]--;
+      if (g_blink) continue;                 // blank this time round
+    }
     bottom[2 * i]     = hexDigit(g_monData[i] >> 4);
     bottom[2 * i + 1] = hexDigit(g_monData[i]);
   }
@@ -738,6 +886,7 @@ static void lcdMonitor(char *top, char *bottom) {
 static void serviceLcd() {
   if (due(g_nextFpsAt, 1000)) { g_fps = g_fpsCount; g_fpsCount = 0; }
   if (!due(g_nextLcdAt, LCD_REFRESH_MS)) return;
+  g_blink = !g_blink;
 
   // A menu left alone goes back to the home screen. Not the health item,
   // which is there to be watched, and not the bus monitor.
@@ -793,6 +942,17 @@ void setup() {
 
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
+  static const uint8_t icons[4][8] PROGMEM = {
+    { 0x0E, 0x1B, 0x11, 0x11, 0x11, 0x11, 0x1F, 0x00 },   // battery
+    { 0x06, 0x09, 0x09, 0x06, 0x04, 0x06, 0x04, 0x06 },   // key
+    { 0x0E, 0x11, 0x11, 0x11, 0x0E, 0x0E, 0x04, 0x00 },   // lamp
+    { 0x0A, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0x04 },   // plug
+  };
+  for (uint8_t i = 0; i < 4; i++) {
+    uint8_t rows[8];
+    memcpy_P(rows, icons[i], 8);
+    g_lcd.createChar(ICON_BATTERY + i, rows);
+  }
   memset(g_lcdShown, ' ', sizeof g_lcdShown);
 #endif
 
@@ -830,12 +990,12 @@ void loop() {
   if (due(g_nextClockAt, 1000)) tickClock(g_clock);
 
   // Dimming and clock are terminal-15 dependent on a real car.
-  if (due(g_nextDimmungAt, DIMMUNG_CYCLE_MS) && g_state.kl_15 && !heardRecently(g_dimmungHeardAt)) {
+  if (due(g_nextDimmungAt, DIMMUNG_CYCLE_MS) && g_state.kl_15 && !recent(g_dimmungHeardAt, MIB_YIELD_MS)) {
     uint8_t frame[MQB_DLC_DIMMUNG_01];
     buildDimmung01(frame, g_dimmung);
     sendFrame(MQB_ID_DIMMUNG_01, MQB_DLC_DIMMUNG_01, frame);
   }
-  if (due(g_nextDiagnoseAt, DIAGNOSE_CYCLE_MS) && g_state.kl_15 && !heardRecently(g_diagnoseHeardAt)) {
+  if (due(g_nextDiagnoseAt, DIAGNOSE_CYCLE_MS) && g_state.kl_15 && !recent(g_diagnoseHeardAt, MIB_YIELD_MS)) {
     uint8_t frame[MQB_DLC_DIAGNOSE_01];
     buildDiagnose01(frame, g_clock);
     sendFrame(MQB_ID_DIAGNOSE_01, MQB_DLC_DIAGNOSE_01, frame);
