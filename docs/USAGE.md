@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 14914 bytes (46%) of program storage space. Maximum is 32256 bytes.
-Global variables use 756 bytes (36%) of dynamic memory, leaving 1292 bytes...
+Sketch uses 15106 bytes (46%) of program storage space. Maximum is 32256 bytes.
+Global variables use 770 bytes (37%) of dynamic memory, leaving 1278 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -239,8 +239,16 @@ laptop. The home screen:
 
 ```
 KL15 ON  X~12.3V    Klemme 15 on or off, X while Klemme X is set, supply voltage
-BKLT 123456 e  0    four icons, frames sent, frames the controller could not send
+BKLT tx/ rx\        four icons and two pendulums
 ```
+
+The pendulums show that things are moving. `tx` swings for as long as the
+emulator's frames go out and are acknowledged; `rx` swings for as long as
+frames come in from the bus. One that stands still as a dash means that
+direction has stopped: `tx-` in listen-only mode, `rx-` on a silent bus. `tx!`
+means frames are failing to send right now, usually because nothing on the bus
+acknowledges them. Once any frame has failed, the count stays at the end of
+the line, `e12`, where `e99` means 99 or more; the exact totals are in `s` on the console.
 
 The first line reads `CRANKING` while Klemme 50 is held. The four icons are
 drawn on the glass as a battery, a key, a lamp and a plug; each is a dash while
@@ -262,8 +270,7 @@ then set `VOLTAGE_VERIFIED 1` and the `~` goes. If it does not follow, find the
 right byte with the learning view, changing the supply voltage as the thing
 you do. `--.-V` means the frame is not on the bus.
 
-In listen-only mode the first line reads `LISTEN` and the second ends in
-`123456 i 12`: frames and distinct IDs seen. `CHECKSUM FAIL` or
+In listen-only mode the first line reads `LISTEN`. `CHECKSUM FAIL` or
 `MCP2515 FAILED` takes the first line when boot found that problem. The glass
 is refreshed every 250 ms (`LCD_REFRESH_MS`) and only the characters that
 changed are written, so the CAN cycle does not notice it. An LED on D6 can show

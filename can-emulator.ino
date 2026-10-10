@@ -125,6 +125,8 @@ static bool     g_blink = false;
 #define ICON_KEY     2
 #define ICON_LAMP    3
 #define ICON_PLUG    4
+#define ICON_TICK    5               // the pendulum to one side ...
+#define ICON_TOCK    6               // ... and to the other
 static uint16_t g_fps      = 0;
 static uint16_t g_fpsCount = 0;
 static uint32_t g_nextFpsAt = 0;
@@ -620,7 +622,7 @@ static void serviceSerial() {
         Serial.print('|');
         for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
           char c = g_lcdShown[row][i];
-          Serial.print(c >= ICON_BATTERY && c <= ICON_PLUG ? "BKLT"[c - ICON_BATTERY] : c);
+          Serial.print(c >= ICON_BATTERY && c <= ICON_TOCK ? "BKLT/\\"[c - ICON_BATTERY] : c);
         }
         Serial.println('|');
       }
@@ -713,14 +715,17 @@ static void lcdVoltage(char *dst) {
 }
 
 //   KL15 ON  X~12.3V    terminal state, X while set, supply voltage
-//   BKLT 123456 e  0    four icons, frames sent, frames that could not be sent
+//   BKLT tx/ rx\        four icons and two pendulums
+// A pendulum swings for as long as frames keep going out (tx) or coming in
+// (rx), and stands still as a dash when they stop. tx shows '!' while frames
+// fail to send; the number of failed frames appears at the end once there are
+// any.
 // The icons, each a dash while it does not apply:
 //   B battery  Klemme 30: a supply voltage is being read; blinks when it is low
 //   K key      Klemme 15: ignition on, ours or in listen-only the car's
 //   L lamp     Klemme 58: the dimming message is on the bus
 //   T plug     a diagnostic tester is talking
-// Listen-only shows frames received and the number of IDs instead, and a
-// failed boot check takes the first line.
+// A failed boot check takes the first line.
 static void lcdHome(char *top, char *bottom) {
   if (!g_selfTestOk)     lcdText(top, PSTR("CHECKSUM FAIL"));
   else if (!g_busOk)     lcdText(top, PSTR("MCP2515 FAILED"));
@@ -748,14 +753,17 @@ static void lcdHome(char *top, char *bottom) {
   if (lamp)     bottom[2] = (char)ICON_LAMP;
   if (recent(g_testerAt, TESTER_HOLD_MS)) bottom[3] = (char)ICON_PLUG;
 
-  if (g_listenOnly) {
-    lcdNumber(bottom + 5, 6, g_rxCount);
-    bottom[12] = 'i';
-    lcdNumber(bottom + 14, 2, g_statCount);
-  } else {
-    lcdNumber(bottom + 5, 6, g_txOk);
-    bottom[12] = 'e';
-    lcdNumber(bottom + 13, 3, g_txErr);
+  // What moved since the last refresh decides what each pendulum does.
+  static uint32_t seenTxOk = 0, seenTxErr = 0, seenRx = 0;
+  char swing = (char)(g_blink ? ICON_TICK : ICON_TOCK);
+  bottom[5] = 't'; bottom[6] = 'x';
+  bottom[7] = g_txErr != seenTxErr ? '!' : g_txOk != seenTxOk ? swing : '-';
+  bottom[9] = 'r'; bottom[10] = 'x';
+  bottom[11] = g_rxCount != seenRx ? swing : '-';
+  seenTxOk = g_txOk; seenTxErr = g_txErr; seenRx = g_rxCount;
+  if (g_txErr) {
+    bottom[13] = 'e';
+    lcdNumber(bottom + 14, 2, g_txErr);     // 99 stands for "99 or more"
   }
 }
 
@@ -843,15 +851,24 @@ static void lcdMonitor(char *top, char *bottom) {
     uint8_t n = 0;
     lcdText(top, PSTR("awake"));
     lcdText(bottom, PSTR(""));
-    for (uint8_t i = 0; i < NM_MAX_NODES; i++) {
-      if (!recent(g_nmSeenAt[i], NM_AWAKE_MS)) continue;
+    // In ascending order of address, so that the list does not reshuffle
+    // with whichever unit happened to be heard first.
+    int16_t last = -1;
+    for (;;) {
+      int16_t next = 256;
+      for (uint8_t i = 0; i < NM_MAX_NODES; i++) {
+        if (!recent(g_nmSeenAt[i], NM_AWAKE_MS)) continue;
+        if (g_nmNode[i] > last && g_nmNode[i] < next) next = g_nmNode[i];
+      }
+      if (next == 256) break;
       if (n < 5) {
-        bottom[3 * n]     = hexDigit(g_nmNode[i] >> 4);
-        bottom[3 * n + 1] = hexDigit(g_nmNode[i]);
+        bottom[3 * n]     = hexDigit((uint8_t)(next >> 4));
+        bottom[3 * n + 1] = hexDigit((uint8_t)next);
       } else {
         bottom[15] = '+';
       }
       n++;
+      last = next;
     }
     lcdNumber(top + 6, 2, n);
     if (n == 0) lcdText(bottom, PSTR("nobody"));
@@ -943,13 +960,15 @@ void setup() {
 
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
-  static const uint8_t icons[4][8] PROGMEM = {
+  static const uint8_t icons[6][8] PROGMEM = {
     { 0x0E, 0x1B, 0x11, 0x11, 0x11, 0x11, 0x1F, 0x00 },   // battery
     { 0x06, 0x09, 0x09, 0x06, 0x04, 0x06, 0x04, 0x06 },   // key
     { 0x0E, 0x11, 0x11, 0x11, 0x0E, 0x0E, 0x04, 0x00 },   // lamp
     { 0x0A, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0x04 },   // plug
+    { 0x04, 0x04, 0x08, 0x08, 0x10, 0x18, 0x18, 0x00 },   // pendulum, left
+    { 0x04, 0x04, 0x02, 0x02, 0x01, 0x03, 0x03, 0x00 },   // pendulum, right
   };
-  for (uint8_t i = 0; i < 4; i++) {
+  for (uint8_t i = 0; i < 6; i++) {
     uint8_t rows[8];
     memcpy_P(rows, icons[i], 8);
     g_lcd.createChar(ICON_BATTERY + i, rows);

@@ -101,7 +101,7 @@
 <rect x="262" y="752" width="460" height="140" rx="3" fill="#161616"/>
 <rect x="290" y="768" width="404" height="108" rx="2" fill="#1a3a8a"/>
 <text x="492" y="814" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">KL15 ON    12.3V</text>
-<text x="492" y="856" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">■■■■ 123456 e  0</text>
+<text x="492" y="856" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">■■■■ tx/ rx\    </text>
 <text x="492" y="910" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle">1602A</text>
 </g>
 

@@ -20,11 +20,14 @@ expect() {
 
 out=$(play 'run 1500')
 expect 'home, ignition off, voltage read'   '|KL15 OFF  ~12.0V|' "$out"
-expect 'battery icon only'                  '|B---     ' "$out"
+expect 'battery icon only, bus alive'       '|B--- tx' "$out"
 
 out=$(play 'set tester 1' 'set volt 138' 'run 1500' 'press short' 'run 2500')
 expect 'ignition on, voltage follows'       '|KL15 ON   ~13.8V|' "$out"
-expect 'battery, key, lamp, tester icons'   '|BKLT     ' "$out"
+expect 'battery, key, lamp, tester icons'   '|BKLT tx' "$out"
+expect 'tx pendulum swings one way'         ' tx/ ' "$out"
+expect 'and the other'                      ' tx\ ' "$out"
+expect 'rx pendulum swings'                 ' rx/ ' "$out"
 
 out=$(play 'run 1500')
 expect 'ignition restored after a reset'    'restored: Klemme 15 ON' "$out"
@@ -51,5 +54,6 @@ expect 'and recovered from'                 'MCP2515 re-init: ok' "$out"
 
 out=$(play 'set gateway 0' 'run 2500' 'ser s')
 expect 'nobody acknowledging: errors count' 'tec 128' "$out"
+expect 'tx shows the failure, rx stands'    ' tx! rx- e' "$out"
 
 exit $fail

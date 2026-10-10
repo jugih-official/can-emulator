@@ -326,7 +326,7 @@ static void reportJson() {
 }
 
 static void reportText() {
-  static const char icons[] = "?BKLT???";
+  static const char icons[] = "?BKLT/\\?";
   for (int r = 0; r < 2; r++) {
     putchar('|');
     for (int c = 0; c < 16; c++) {
