@@ -100,10 +100,10 @@ terminal; and the plain 16-pin 1602A display hanging from the analog header.
 D11, D12 and D13 are the Uno's hardware SPI pins and cannot be moved; D10, D2
 and the LCD pins are `MCP_CS_PIN`, `MCP_INT_PIN` and `LCD_*_PIN` in
 [`config.h`](config.h). The LCD is optional (`ENABLE_LCD 0` without one). It
-shows the supply voltage on its first line, and on its second four icons — a
-car battery for Klemme 30, a key for 15, an instrument cluster for 58 and a
-diagnostic socket for a tester — with a radio wave in the corner that keeps
-waving while the traffic is alive.
+shows `Ign on` or `Ign off` and the supply voltage on its first line, and on
+its second three icons — a car battery for Klemme 30, an instrument cluster
+for 58 and a diagnostic socket for a tester — with a radio wave in the corner
+that keeps waving while the traffic is alive.
 The LCD's and the module's 5 V and GND all come from the Uno's one 5V pin and
 its GND pins: share them with a breadboard rail or a splitter. Two things to
 check on the module before the first upload: the **crystal** (`8.000` →
@@ -169,8 +169,8 @@ Klemme 50. The derivation is written up in
    `lib install LiquidCrystal`).
 4. Upload `can-emulator.ino` and open the serial monitor at **115200 baud**. A
    CH340 clone is `/dev/ttyUSB0`, a genuine Uno `/dev/ttyACM0`.
-5. Press the button, or send `1`, to switch Klemme 15 on; the key icon
-   appears on the LCD. Hold the button for the menu: see
+5. Press the button, or send `1`, to switch Klemme 15 on; the LCD says
+   `Ign on`. Hold the button for the menu: see
    [USAGE.md](docs/USAGE.md#the-button-and-the-menu).
 
 ## Simulator

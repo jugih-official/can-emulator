@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 15312 bytes (47%) of program storage space. Maximum is 32256 bytes.
-Global variables use 773 bytes (37%) of dynamic memory, leaving 1275 bytes...
+Sketch uses 15214 bytes (47%) of program storage space. Maximum is 32256 bytes.
+Global variables use 768 bytes (37%) of dynamic memory, leaving 1280 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -238,23 +238,21 @@ A 16×2 LCD on **A0–A5** (`ENABLE_LCD`, on by default) shows the state without
 laptop. The home screen:
 
 ```
-          ?12.3V    the supply voltage; the left side only speaks up when needed
-BbK-DdOo       w    four icons side by side, and the wave in the corner
+Ign on  X ?12.3V    the ignition being sent, X while Klemme X is set, supply voltage
+BbDdOo         w    three icons side by side, and the wave in the corner
 ```
 
-There is no "KL15 ON" text: the key icon says whether the ignition is on. The
-left of the first line stays empty in normal running and names the
-exceptions: `LISTEN` in listen-only mode, `CRANKING` while Klemme 50 is held,
-`KL X` while Klemme X is set, `MCP2515 FAILED` or `CHECKSUM FAIL` after a
-failed boot check.
+The first line says `Ign on` or `Ign off`: the Klemme 15 state the emulator is
+sending. It reads `Cranking` while Klemme 50 is held and `Listen` in
+listen-only mode, where no ignition is sent at all; `MCP2515 FAILED` or
+`CHECKSUM FAIL` takes the line after a failed boot check.
 
-The four icons are drawn on the glass, each across two character cells, with
+The three icons are drawn on the glass, each across two character cells, with
 nothing between them. One that does not apply is two dashes:
 
 | Icon | Terminal | Shown when |
 |---|---|---|
 | Car battery, with its two posts and + − | Klemme 30 | A supply voltage is being read from the bus. It blinks below 11.5 V (`VOLTAGE_LOW_DV`). |
-| Car key | Klemme 15 | The emulator is sending ignition on. In listen-only: the car's own `0x3C0` says ignition on. |
 | Instrument cluster, a dial with its needle | Klemme 58 | The dimming message `0x5F0` is on the bus, the emulator's or another unit's. |
 | Diagnostic socket, the 16-pin trapezoid | — | A diagnostic tester is talking: a frame in `0x700`–`0x7FF` within the last 3 s. |
 
@@ -263,9 +261,9 @@ shows that the traffic is alive. It keeps waving for as long as the emulator's
 frames go out and are acknowledged; in listen-only mode, for as long as frames
 come in. It is replaced by `!` while frames are failing to send, usually
 because nothing on the bus acknowledges them, and by a dash when nothing moves
-at all. Once any frame has failed, the count stays on the line as `e 12`, so
-that a problem that came and went is not missed; the totals are in `s` on the
-console.
+at all. Once any frame has failed, the number of failed frames stays on the
+line as `err 12`, so that a problem that came and went is not missed. It
+counts frames the emulator could not send since power-up; a reset clears it.
 
 **The voltage** is read from the bus, not measured by the Arduino: one byte of
 a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and
@@ -291,7 +289,7 @@ emulator on the gateway's convenience bus, tester on the OBD socket.
 
 1. Power the bench. The wave in the corner of the LCD is waving: the gateway
    is acknowledging.
-2. Press the button: the key icon appears.
+2. Press the button: the LCD says `Ign on`.
 3. Connect the tester. In ODIS the gateway's measured value *Terminal 15 status
    via CAN* should read on.
 4. Work on the control unit. For a flash, read

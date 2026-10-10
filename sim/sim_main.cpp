@@ -347,10 +347,10 @@ static void reportJson() {
 }
 
 static void reportText() {
-  // Battery Bb, key K, cluster Dd, socket Oo. Codes 8..15 are the user
+  // Battery Bb, cluster Dd, socket Oo. Codes 8..15 are the user
   // characters once more, so 8 is user character 0: the wave, printed as the
   // number of arcs its picture has at the moment.
-  char icons[] = "0BbKDdOo";
+  char icons[] = "0BbDdOo?";
   icons[0] = sim.cgram[0][1] ? '3' : sim.cgram[0][3] ? '2' : sim.cgram[0][5] ? '1' : '0';
   for (int r = 0; r < 2; r++) {
     putchar('|');

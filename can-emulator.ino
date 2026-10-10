@@ -54,8 +54,6 @@ static uint32_t g_diagnoseHeardAt = 0;
 // --- what the bus tells us ---------------------------------------------------
 // All "when last seen" stamps are millis() | 1, so that 0 can mean never.
 static uint32_t g_testerAt  = 0;      // a diagnostic frame, 0x700..0x7FF
-static uint32_t g_busKlAt   = 0;      // someone else's Klemmen_Status_01
-static bool     g_busKl15   = false;  // ... and the Klemme 15 bit in it
 static uint32_t g_voltAt    = 0;      // the supply voltage frame
 static uint8_t  g_voltDv    = 0;      // supply voltage in tenths of a volt
 // Units heard sending network management, by the low byte of 0x1B0000xx.
@@ -121,14 +119,12 @@ static uint8_t  g_monNoise = 0;      // one bit per byte: changes by itself
 static uint8_t  g_monHot[8];         // display refreshes left to blink
 static bool     g_blink = false;
 #define MON_FIRST_ID_PAGE 2          // page 0 summary, page 1 who is awake
-// The display has eight user characters and the home screen uses them all:
-// seven for the icons and one for the radio wave, whose picture is redrawn in
-// place for each stage of its animation. The key gets by with one: its blade
-// is the display's own '-'.
+// The display has eight user characters. The home screen uses seven: six for
+// the three icons and one for the radio wave, whose picture is redrawn in
+// place for each stage of its animation.
 #define ICON_BATTERY 1               // car battery, codes 1 and 2
-#define ICON_KEY     3               // the bow of a car key
-#define ICON_DASH    4               // instrument cluster, codes 4 and 5
-#define ICON_OBD     6               // diagnostic socket, codes 6 and 7
+#define ICON_DASH    3               // instrument cluster, codes 3 and 4
+#define ICON_OBD     5               // diagnostic socket, codes 5 and 6
 // User character 0, addressed as 8: the HD44780 repeats its user characters
 // at codes 8..15, and 0 cannot sit in the middle of a C string.
 #define ICON_WAVE    8
@@ -471,10 +467,6 @@ static void serviceSniffer() {
   if (sid == MQB_ID_DIMMUNG_01)  g_dimmungHeardAt  = now | 1;
   if (sid == MQB_ID_DIAGNOSE_01) g_diagnoseHeardAt = now | 1;
   if (sid >= 0x700)              g_testerAt        = now | 1;
-  if (sid == MQB_ID_KLEMMEN_STATUS_01 && dlc >= 3) {
-    g_busKl15 = buf[2] & 0x02;
-    g_busKlAt = now | 1;
-  }
 #if ENABLE_VOLTAGE
   if (sid == VOLTAGE_CAN_ID && dlc > VOLTAGE_BYTE) {
     uint32_t mv = (uint32_t)buf[VOLTAGE_BYTE] * VOLTAGE_MV_PER_BIT + VOLTAGE_OFFSET_MV;
@@ -627,8 +619,8 @@ static void serviceSerial() {
         Serial.print('|');
         for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
           char c = g_lcdShown[row][i];
-          // battery Bb, key K, cluster Dd, socket Oo, the wave w
-          Serial.print(c >= ICON_BATTERY && c <= ICON_WAVE ? "BbKDdOow"[c - ICON_BATTERY] : c);
+          // battery Bb, cluster Dd, socket Oo, the wave w
+          Serial.print(c >= ICON_BATTERY && c <= ICON_WAVE ? "BbDdOo?w"[c - ICON_BATTERY] : c);
         }
         Serial.println('|');
       }
@@ -736,14 +728,13 @@ static void lcdWaveStage(uint8_t stage) {
   g_lcd.createChar(ICON_WAVE & 7, rows);
 }
 
-//   LISTEN    ?12.3V    only what needs saying, and the supply voltage
-//   BbK-DdOo e 12  w    four icons, failed frames if any, the wave
-// The first line is empty at its left in normal running: the key icon says
-// whether the ignition is on. It names the exceptions: a failed boot check,
-// listen-only mode, cranking, Klemme X.
+//   Ign on  X ?12.3V    the ignition we send, X while Klemme X is set, voltage
+//   BbDdOo  err 12 w    three icons, failed frames if any, the wave
+// In place of "Ign on" / "Ign off" the first line reads "Cranking" while
+// Klemme 50 is held and "Listen" in listen-only mode, where we send no
+// ignition at all; a failed boot check takes the whole line.
 // The icons, each two dashes while it does not apply:
 //   battery             Klemme 30: a supply voltage is being read; blinks when low
-//   car key             Klemme 15: ignition on, ours or in listen-only the car's
 //   instrument cluster  Klemme 58: the dimming message is on the bus
 //   diagnostic socket   a diagnostic tester is talking
 // The wave in the corner keeps waving for as long as the traffic is healthy:
@@ -759,32 +750,30 @@ static void lcdHome(char *top, char *bottom) {
   if (!g_selfTestOk)     lcdText(top, PSTR("CHECKSUM FAIL"));
   else if (!g_busOk)     lcdText(top, PSTR("MCP2515 FAILED"));
   else {
-    lcdText(top, g_listenOnly ? PSTR("LISTEN")
-               : g_state.kl_50 ? PSTR("CRANKING")
-               : g_state.kl_x  ? PSTR("KL X") : PSTR(""));
+    lcdText(top, g_listenOnly ? PSTR("Listen")
+               : g_state.kl_50 ? PSTR("Cranking")
+               : g_state.kl_15 ? PSTR("Ign on") : PSTR("Ign off"));
+    if (g_state.kl_x) top[8] = 'X';
     lcdVoltage(top + 10);
   }
 
-  bool ignition = g_listenOnly ? (g_busKl15 && recent(g_busKlAt, 1000))
-                               : (g_state.kl_15 && g_busOk);
   bool lamp = recent(g_dimmungHeardAt, MIB_YIELD_MS);
 #if ENABLE_MIB_MESSAGES
   if (g_state.kl_15 && g_busOk && !g_listenOnly) lamp = true;   // ours is going out
 #endif
-  lcdText(bottom, PSTR("--------"));
+  lcdText(bottom, PSTR("------"));
 #if ENABLE_VOLTAGE
   if (recent(g_voltAt, VOLTAGE_STALE_MS)) {
     if (g_voltDv < VOLTAGE_LOW_DV && g_blink) bottom[0] = bottom[1] = ' ';
     else lcdIcon(bottom + 0, ICON_BATTERY);
   }
 #endif
-  if (ignition) bottom[2] = (char)ICON_KEY;      // the blade is the '-' already there
-  if (lamp)     lcdIcon(bottom + 4, ICON_DASH);
-  if (recent(g_testerAt, TESTER_HOLD_MS)) lcdIcon(bottom + 6, ICON_OBD);
+  if (lamp) lcdIcon(bottom + 2, ICON_DASH);
+  if (recent(g_testerAt, TESTER_HOLD_MS)) lcdIcon(bottom + 4, ICON_OBD);
 
   if (g_txErr) {
-    bottom[9] = 'e';
-    lcdNumber(bottom + 10, 3, g_txErr);     // 999 stands for "999 or more"
+    bottom[8] = 'e'; bottom[9] = 'r'; bottom[10] = 'r';
+    lcdNumber(bottom + 11, 3, g_txErr);     // 999 stands for "999 or more"
   }
 
   // What moved since the last refresh decides what the corner shows.
@@ -995,16 +984,15 @@ void setup() {
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
   // On the glass there is a gap of one dot between two cells.
-  static const uint8_t icons[7][8] PROGMEM = {
+  static const uint8_t icons[6][8] PROGMEM = {
     { 0x0C, 0x1F, 0x10, 0x12, 0x17, 0x12, 0x1F, 0x00 },   // battery: post, and the plus
     { 0x06, 0x1F, 0x01, 0x01, 0x1D, 0x01, 0x1F, 0x00 },   //          post, and the minus
-    { 0x00, 0x0E, 0x1B, 0x11, 0x1B, 0x0E, 0x00, 0x00 },   // key: the bow
     { 0x00, 0x07, 0x08, 0x10, 0x10, 0x11, 0x1F, 0x00 },   // cluster: a dial ...
     { 0x00, 0x1C, 0x02, 0x09, 0x11, 0x01, 0x1F, 0x00 },   //          ... and its needle
     { 0x1F, 0x15, 0x10, 0x17, 0x08, 0x0A, 0x07, 0x00 },   // diagnostic socket: two rows of
     { 0x1F, 0x15, 0x01, 0x1D, 0x02, 0x0A, 0x1C, 0x00 },   //          pins in a trapezoid
   };
-  for (uint8_t i = 0; i < 7; i++) {
+  for (uint8_t i = 0; i < 6; i++) {
     uint8_t rows[8];
     memcpy_P(rows, icons[i], 8);
     g_lcd.createChar(ICON_BATTERY + i, rows);
