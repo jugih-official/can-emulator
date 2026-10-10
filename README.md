@@ -179,7 +179,8 @@ A two-part printed case, drawn for [HelCAD](https://sihilisko.com/helcad/):
 the boards and their wiring inside, the display's window the only thing on the
 outside, one hole in the lower side for the CAN pair, the supply and the
 button's wires. The lid and the boards snap in; there are no screws. It
-measures 96 × 119.5 × 35 mm.
+measures 96 × 119.5 × 35 mm, with the corners rounded to 8.8 mm and a bevel
+round the top and bottom edges.
 
 ![The closed case in HelCAD](docs/img/case-closed.png)
 

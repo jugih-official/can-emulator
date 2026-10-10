@@ -29,7 +29,12 @@ data sheet, not from a part held against a caliper, and the three checks under
 | `gen/` | The program that writes all of the above from the numbers at its top |
 
 Outside it measures **96 × 119.5 × 35 mm**; inside 92 × 115.5 × 31 mm. The base
-is 49 cm³ of plastic, the lid 25 cm³.
+is 48 cm³ of plastic, the lid 24 cm³.
+
+Seen from above the four corners are rounded to 8.8 mm, and a bevel of 0.8 mm
+across and 1 mm down runs round the lid's top edge and the base's bottom edge.
+The wall keeps its 2 mm round the bend, so inside the corners are rounded too,
+to 6.8 mm, and the lid's rim follows them.
 
 ## The layout
 
@@ -122,7 +127,8 @@ a chamfer.
 ## Printing
 
 - **Base:** floor down. **Lid:** outside down, as its STL lies. Nothing needs
-  support.
+  support. Both then have their bevel on the bed, which is why it is a
+  little steeper than 45°: 39° off upright.
 - What a slicer will call overhangs are all bridges of a millimetre or less —
   the hooks' lips, the ridges, the tops of the grooves — except the top of the
   cable hole, a 24 mm bridge across a 2 mm wall. HelCAD's print check counts
@@ -131,6 +137,30 @@ a chamfer.
   PLA, which may crack there after a few uses.
 - 0.3 mm of air is left round every board (`Fit`), 0.2 mm between rim and wall.
   A printer that prints tight needs more.
+
+## Getting the STL files out of HelCAD
+
+The two STL files here are ready for a slicer. To make them again from the
+drawings, in HelCAD: **File → Save As**, format **Binary STL · millimetres**.
+It writes every solid on a layer that is showing as one file.
+
+- **From a part's own drawing** (`…-base.sihicad.json`, `…-lid.sihicad.json`)
+  the part comes out as it lies on the bed. Done in a local build of HelCAD,
+  this gave the same two files as the ones in this folder, byte for byte.
+- **From the assembled drawing** hide what is not wanted first, or the three
+  boards and the other half come along (6 solids in one file). Open the layer
+  stack, right-click the layer's plate and press **Hide others**; **Show all**
+  in any plate's menu brings the rest back. (Those two keys came into HelCAD
+  on 2026-10-11; a build older than that needs **Hide** on each of the other
+  layers.) The base comes out as above. The lid comes out where it sits on
+  the case, window up and 22.9 mm above the bed: turn it over in the slicer,
+  or use the lid's own drawing.
+
+All of these were opened again by a separate check that knows nothing of
+HelCAD: one closed shell each, every edge shared by exactly two triangles
+running opposite ways, no triangle without area, the stored normals agreeing
+with the triangles; 4472 triangles and 48.32 cm³ for the base, 3724 and
+24.12 cm³ for the lid.
 
 ## Putting it together
 
@@ -156,15 +186,26 @@ dotnet run -c Release
 ```
 
 It writes the five files into this folder and checks its own work: that each
-part is closed, that its triangles enclose exactly the volume of its boxes,
-that no board touches the case anywhere but at its pins, that the lid and the
-base do not overlap, and that the USB plug stays clear of the display's
-wiring. It stops with the reason if any of that fails.
+part is closed, that no board touches the case anywhere but at its pins, that
+the lid and the base do not overlap, that nothing which must keep its shape
+stands in a rounded corner, that the boards' corners clear the walls where
+they bend, and that the USB plug stays clear of the display's wiring. It
+stops with the reason if any of that fails.
 
-Both parts are boxes: one to start from, then boxes added and boxes cut away.
-The generator works out their surface itself, exactly, and keeps the boxes in
-the drawing as each solid's steps, so in HelCAD a post or a hook is still
-there to be found. `dotnet run -c Release -- --compare` also puts the same
-boxes through HelCAD's own boolean, one join at a time, and says how far it
-gets: the base goes through whole and agrees to the cubic micron, the lid is
-refused at its ninth box.
+Both parts are boxes first: one to start from, then boxes added and boxes cut
+away. The generator works out their surface itself, exactly, and then bends
+the outside: near a corner the plan is squeezed until the square corner is a
+quarter circle, near the top and bottom edges the wall's section is squeezed
+until its square corner is a slope. Both parts are bent the same way, so what
+fitted square still fits, and the generator refuses a radius that would bend
+a post, a hook or a board's place — 8.8 mm is as far as the corners go: that
+is where the display's posts begin, and 9 is refused.
+
+`CornerRadius = 0` and `BevelAcross = 0` give the square case back, and then
+the drawing keeps the boxes as each solid's steps, so that in HelCAD a post or
+a hook is still there to be found. Rounded, the solids are plain meshes: what
+they are is no longer what their boxes come to.
+
+`dotnet run -c Release -- --compare` also puts the boxes through HelCAD's own
+boolean, one join at a time, and says how far it gets: the base goes through
+whole and agrees to the cubic micron, the lid is refused at its ninth box.

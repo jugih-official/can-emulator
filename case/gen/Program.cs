@@ -93,6 +93,20 @@ const double HoleWide = 24.0, HoleHigh = 11.0, HoleUp = 3.0;
 // A slot at the back to twist a coin in: the lid sits flush all round.
 const double PryWide = 12.0, PryHigh = 1.0;
 
+// The outside is not left square. Seen from above the four corners are
+// rounded, and a bevel runs round the lid's top edge and the base's bottom
+// edge. Zero for either leaves that square.
+// The radius is as large as the corners have room for: the wall keeps its
+// thickness round the bend, so inside it the corner is rounded by this less
+// the wall, and nothing that has to stay square -- a post, a hook, a board --
+// may stand where the bending is. The display's posts are the first thing in
+// the way, 8.8 mm from the outside of the walls.
+const double CornerRadius = 8.8;
+const int CornerFacets = 12;                 // flat faces to a corner; an even number
+// The bevel is a little steeper than 45 degrees because both parts are printed
+// with it on the bed, and a printer lays a steep slope better than a flat one.
+const double BevelAcross = 0.8, BevelDown = 1.0;
+
 // Lid: a rim that goes down inside the walls, with a ridge on each long side
 // that snaps into a groove in the wall.
 const double RimDeep = 5.0, RimThick = 1.6, RimAir = 0.2;
@@ -109,7 +123,7 @@ static double PinSide(double hole) => (hole - 0.5) / Math.Sqrt(2);
 // ============================== the base ====================================
 var b = new BoxSolid("Case base");
 b.Start(-Wall, -Wall, 0, insideX + Wall, insideY + Wall, top);
-b.Cut(0, 0, Floor, insideX, insideY, top);
+b.Cut(0, 0, Floor, insideX, insideY, top, wall: true);
 // the cable hole, under the middle of the display
 b.Cut(insideX / 2 - HoleWide / 2, -Wall, Floor + HoleUp, insideX / 2 + HoleWide / 2, 0, Floor + HoleUp + HoleHigh);
 // the coin slot
@@ -173,10 +187,10 @@ l.Cut(viewX - LcdViewX / 2 - 0.5, viewY - LcdViewY / 2 - 0.5, top, viewX + LcdVi
 
 // the rim, four strips
 double r0 = RimAir, rx1 = insideX - RimAir, ry1 = insideY - RimAir, rimZ = top - RimDeep;
-l.Join(r0, r0, rimZ, rx1, r0 + RimThick, top);
-l.Join(r0, ry1 - RimThick, rimZ, rx1, ry1, top);
-l.Join(r0, r0, rimZ, r0 + RimThick, ry1, top);
-l.Join(rx1 - RimThick, r0, rimZ, rx1, ry1, top);
+l.Join(r0, r0, rimZ, rx1, r0 + RimThick, top, wall: true);
+l.Join(r0, ry1 - RimThick, rimZ, rx1, ry1, top, wall: true);
+l.Join(r0, r0, rimZ, r0 + RimThick, ry1, top, wall: true);
+l.Join(rx1 - RimThick, r0, rimZ, rx1, ry1, top, wall: true);
 // its ridges, each in two steps like a hook's lip: the lower one, which meets
 // the wall's edge first on the way down, stands out half as far
 double ridgeStep = ridgeZ + RidgeHigh / 3;
@@ -232,8 +246,15 @@ string outDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", ".
 var compare = args.Contains("--compare");
 foreach (var arg in args.Where(arg => !arg.StartsWith("--"))) outDir = Path.GetFullPath(arg);
 
-var baseSolid = b.Build();
-var lidSolid = l.Build();
+// The boxes say where everything is; the skin then bends the outside of both
+// parts in the same way, so what fitted square still fits.
+var skin = new Skin(-Wall, -Wall, 0, insideX + Wall, insideY + Wall, top + Lid, CornerRadius, CornerFacets, BevelAcross, BevelDown);
+if (CornerRadius > 0 && CornerRadius < Math.Max(BevelAcross, Wall))
+{
+    throw new InvalidOperationException("The corner radius is smaller than the wall or the bevel: make it nought, or larger.");
+}
+var baseSolid = b.Build(skin);
+var lidSolid = l.Build(skin);
 
 // What goes through what, and what must not. A board is drawn without its
 // holes, so the pins are found inside it and nothing else may be.
@@ -266,6 +287,23 @@ Through("the space over the Uno", b, unoAbove, 2 * lips + 4 * PinSide(UnoHole) *
 Through("the space over the CAN module", b, mcpAbove, 2 * lips);
 Through("the space over the Uno, in the lid", l, unoAbove, 0);
 Through("the space over the CAN module, in the lid", l, mcpAbove, 0);
+// The boards are stiff and the walls are not square at the corners: a board's
+// corner that reaches into a rounded corner has to be inside the bend of the
+// wall's inner face, with air to spare.
+foreach (var (what, board) in new[] { ("the Uno", unoBoard), ("the CAN module", mcpBoard), ("the display's board", lcdBoard) })
+{
+    foreach (var x in new[] { board[0], board[3] })
+    foreach (var y in new[] { board[1], board[4] })
+    {
+        if (skin.InsideTheBend(x, y, Wall) is { } air && air < Fit)
+        {
+            throw new InvalidOperationException(
+                $"A corner of {what} at {x:0.#}, {y:0.#} is {air:0.##} mm from the wall where it bends round the corner: " +
+                "make the corner radius smaller.");
+        }
+    }
+}
+
 // The USB plug lies under the display's wiring on its way to the Uno.
 double plugTop = boardTop + UsbPlugAbove, wiringBottom = lcdBack - LcdWiring;
 if (wiringBottom - plugTop < 0.5)
@@ -334,7 +372,8 @@ void WriteStl(string name, MeshEntity solid, BoxSolid recipe)
     var size = solid.Bounds;
     Console.WriteLine($"{name}: {recipe.Steps.Count} boxes, {stl.TriangleCount} triangles, " +
         $"{size.Maximum.X - size.Minimum.X:0.0} x {size.Maximum.Y - size.Minimum.Y:0.0} x {size.Maximum.Z - size.Minimum.Z:0.0} mm on the bed, " +
-        $"{recipe.Volume / 1000:0.00} cm3, overhanging {report.OverhangShare:P1} of its surface");
+        $"{recipe.Volume / 1000:0.00} cm3 ({(recipe.BoxVolume - recipe.Volume) / 1000:0.00} taken off by the rounding), " +
+        $"overhanging {report.OverhangShare:P1} of its surface");
     foreach (var issue in report.Issues) Console.WriteLine($"    print check: {issue.Kind}: {issue.Text}");
 }
 
@@ -357,7 +396,7 @@ if (compare)
         {
             for (; done < recipe.Steps.Count; done++) built = SolidModel.Continue(built, [recipe.Steps[done]], Units);
             var volume = built is MeshEntity mesh ? BoxMesh.Volume(mesh) : double.NaN;
-            Console.WriteLine($"{recipe.Layer}: HelCAD's boolean made all {done} steps; volume {volume:0.######} against {recipe.Volume:0.######}");
+            Console.WriteLine($"{recipe.Layer}: HelCAD's boolean made all {done} steps; volume {volume:0.######} against {recipe.BoxVolume:0.######} for the boxes");
         }
         catch (Exception problem)
         {
@@ -367,6 +406,165 @@ if (compare)
 }
 
 // ---------------------------------------------------------------------------
+
+/// <summary>
+/// The outside of the case where it is not square: corners rounded as seen
+/// from above, and a bevel round the top edge and the bottom edge.
+/// </summary>
+/// <remarks>
+/// It is a way of moving points, not a shape that is cut. Near a corner the
+/// plan is squeezed along the lines through the corner's centre until the
+/// square the corner filled has become a quarter circle. Near the top and
+/// bottom edges the section through the wall is squeezed the same way until
+/// its square corner has become a slope. Away from corners and edges nothing
+/// moves, and where the two meet the bevel is taken first and the rounding
+/// carries it round the corner.
+///
+/// Because every point has one place to go, and near points go to near
+/// places, whatever is built of boxes and then bent stays as it was in every
+/// way that matters to a solid: closed, and clear of whatever it was clear of.
+/// </remarks>
+sealed class Skin(
+    double x0, double y0, double z0, double x1, double y1, double z1,
+    double radius, int facets, double bevel, double bevelDown)
+{
+    private const double Hair = 1e-9;
+
+    public bool Square => radius <= 0 && bevel <= 0;
+
+    /// <summary>The planes the grid needs so that there are corners to move.</summary>
+    /// <remarks>
+    /// A corner's arc is drawn through the grid's own corners along the two
+    /// walls that meet there, so those are placed where equal steps round the
+    /// arc come from: at the radius times one less the tangent of each step.
+    /// </remarks>
+    public IEnumerable<double> Planes(int axis)
+    {
+        var low = axis == 0 ? x0 : axis == 1 ? y0 : z0;
+        var high = axis == 0 ? x1 : axis == 1 ? y1 : z1;
+        if (axis < 2 && radius > 0)
+        {
+            for (var step = 0; step < facets / 2; step++)
+            {
+                var along = radius * (1 - Math.Tan(step * Math.PI / (2.0 * facets)));
+                yield return low + along;
+                yield return high - along;
+            }
+        }
+        if (bevel > 0)
+        {
+            var size = axis == 2 ? bevelDown : bevel;
+            yield return low + size;
+            yield return high - size;
+        }
+    }
+
+    /// <summary>Whether a face of the grid lies in the ring a bevel is made of.</summary>
+    public bool InBevel(double[] low, double[] high) =>
+        bevel > 0 &&
+        (high[2] <= z0 + bevelDown + Hair || low[2] >= z1 - bevelDown - Hair) &&
+        (high[0] <= x0 + bevel + Hair || low[0] >= x1 - bevel - Hair ||
+         high[1] <= y0 + bevel + Hair || low[1] >= y1 - bevel - Hair);
+
+    /// <summary>Whether a face of the grid lies in one of the four corners that are rounded.</summary>
+    public bool InCorner(double[] low, double[] high) =>
+        radius > 0 &&
+        (high[0] <= x0 + radius + Hair || low[0] >= x1 - radius - Hair) &&
+        (high[1] <= y0 + radius + Hair || low[1] >= y1 - radius - Hair);
+
+    /// <summary>Whether a rectangle of the plan reaches into one of the rounded corners.</summary>
+    public bool InCornerPlan(double xLow, double yLow, double xHigh, double yHigh) =>
+        radius > 0 &&
+        (xLow < x0 + radius - Hair || xHigh > x1 - radius + Hair) &&
+        (yLow < y0 + radius - Hair || yHigh > y1 - radius + Hair);
+
+    /// <summary>
+    /// How far a point of the plan is inside the bend of a wall's inner face,
+    /// that face being a given depth in from the outside. Only asked of points
+    /// in a rounded corner; anywhere else the wall is straight and the boxes
+    /// have already answered.
+    /// </summary>
+    public double? InsideTheBend(double x, double y, double wallDepth)
+    {
+        if (radius <= 0) return null;
+        var (left, front, fromSide, fromEnd) = Nearest(x, y);
+        if (fromSide >= radius - Hair || fromEnd >= radius - Hair) return null;
+        double cx = left ? x0 + radius : x1 - radius, cy = front ? y0 + radius : y1 - radius;
+        return (radius - wallDepth) - Math.Sqrt(((x - cx) * (x - cx)) + ((y - cy) * (y - cy)));
+    }
+
+    /// <summary>Where a point of the square solid is on the finished one.</summary>
+    public Point3 Bend(Point3 point)
+    {
+        double x = point.X, y = point.Y, z = point.Z;
+        if (bevel > 0)
+        {
+            var fromTop = z1 - z < z - z0;
+            var down = fromTop ? z1 - z : z - z0;                           // in from the bevelled face
+            var inward = Math.Min(Math.Min(x - x0, x1 - x), Math.Min(y - y0, y1 - y));   // in from the nearest wall
+            if (down < bevelDown && inward < bevel)
+            {
+                // Measured from the bevel's inner corner, as parts of its
+                // size, the two are a and b. The outline a = 1 or b = 1 has
+                // to become the slope a + b = 1: every point moves along its
+                // own line through that corner.
+                double a = (bevel - inward) / bevel, b = (bevelDown - down) / bevelDown;
+                var squeeze = Math.Max(a, b) / (a + b);
+                (x, y) = Inward(x, y, inward, bevel * (1 - (a * squeeze)));
+                var level = bevelDown * (1 - (b * squeeze));
+                z = fromTop ? z1 - level : z0 + level;
+            }
+        }
+
+        if (radius > 0)
+        {
+            var (left, front, fromSide, fromEnd) = Nearest(x, y);
+            if (fromSide < radius && fromEnd < radius)
+            {
+                // The square of the corner becomes a quarter circle: along
+                // each line through the centre, as far as the square went
+                // is now as far as the circle goes.
+                double cx = left ? x0 + radius : x1 - radius, cy = front ? y0 + radius : y1 - radius;
+                double vx = x - cx, vy = y - cy;
+                var straight = Math.Sqrt((vx * vx) + (vy * vy));
+                if (straight > 0)
+                {
+                    var squeeze = Math.Max(Math.Abs(vx), Math.Abs(vy)) / straight;
+                    x = cx + (vx * squeeze);
+                    y = cy + (vy * squeeze);
+                }
+            }
+        }
+
+        return new Point3(x, y, z);
+    }
+
+    private (bool Left, bool Front, double FromSide, double FromEnd) Nearest(double x, double y)
+    {
+        bool left = x - x0 < x1 - x, front = y - y0 < y1 - y;
+        return (left, front, left ? x - x0 : x1 - x, front ? y - y0 : y1 - y);
+    }
+
+    /// <summary>
+    /// Moves a point of the plan from one depth inside the wall to another:
+    /// straight in from the wall, or, in a corner, along the line to the
+    /// corner's centre, so that the bevel turns the corner as the wall does.
+    /// </summary>
+    private (double X, double Y) Inward(double x, double y, double from, double to)
+    {
+        var turn = Math.Max(radius, bevel);
+        var (left, front, fromSide, fromEnd) = Nearest(x, y);
+        if (fromSide < turn && fromEnd < turn)
+        {
+            double cx = left ? x0 + turn : x1 - turn, cy = front ? y0 + turn : y1 - turn;
+            var scale = (turn - to) / (turn - from);
+            return (cx + ((x - cx) * scale), cy + ((y - cy) * scale));
+        }
+
+        if (fromSide < fromEnd) return (left ? x0 + to : x1 - to, y);
+        return (x, front ? y0 + to : y1 - to);
+    }
+}
 
 /// <summary>A solid said as boxes: one to start from, then boxes added or cut away.</summary>
 sealed class BoxSolid(string layer)
@@ -384,36 +582,65 @@ sealed class BoxSolid(string layer)
     /// <summary>Of the finished solid, in cubic millimetres; known once it is built.</summary>
     public double Volume { get; private set; }
 
+    /// <summary>
+    /// The boxes that are wall: they go round a rounded corner and are meant
+    /// to be bent with it. Everything else has to keep its shape and may not
+    /// stand in a corner at all.
+    /// </summary>
+    private readonly HashSet<int> _walls = [];
+
     public void Start(double x0, double y0, double z0, double x1, double y1, double z1) =>
-        Add(SolidStepKind.Base, x0, y0, z0, x1, y1, z1);
+        Add(SolidStepKind.Base, x0, y0, z0, x1, y1, z1, wall: true);
 
-    public void Join(double x0, double y0, double z0, double x1, double y1, double z1) =>
-        Add(SolidStepKind.Join, x0, y0, z0, x1, y1, z1);
+    public void Join(double x0, double y0, double z0, double x1, double y1, double z1, bool wall = false) =>
+        Add(SolidStepKind.Join, x0, y0, z0, x1, y1, z1, wall);
 
-    public void Cut(double x0, double y0, double z0, double x1, double y1, double z1) =>
-        Add(SolidStepKind.Cut, x0, y0, z0, x1, y1, z1);
+    public void Cut(double x0, double y0, double z0, double x1, double y1, double z1, bool wall = false) =>
+        Add(SolidStepKind.Cut, x0, y0, z0, x1, y1, z1, wall);
 
-    private void Add(SolidStepKind kind, double x0, double y0, double z0, double x1, double y1, double z1)
+    private void Add(SolidStepKind kind, double x0, double y0, double z0, double x1, double y1, double z1, bool wall)
     {
         if (!(x1 > x0 && y1 > y0 && z1 > z0))
         {
             throw new ArgumentException($"Box {_boxes.Count} on {layer} has no size: {x0}..{x1}, {y0}..{y1}, {z0}..{z1}.");
         }
+        if (wall) _walls.Add(_boxes.Count);
         _boxes.Add((kind, [x0, y0, z0, x1, y1, z1]));
         var shape = SolidPrimitives.Box(new Point3(x0, y0), new Point3(x1, y1), z1 - z0, layer: layer)
             .Translate(new Vector3(0, 0, z0));
         Steps.Add(new SolidStep(kind, shape));
     }
 
-    public MeshEntity Build()
+    /// <summary>Of the boxes alone, before any rounding of the outside.</summary>
+    public double BoxVolume { get; private set; }
+
+    public MeshEntity Build(Skin skin)
     {
-        var (vertices, faces, volume) = BoxMesh.Of(_boxes);
-        Volume = volume;
-        var mesh = new MeshEntity(EntityId.New(), vertices, faces, layer) { Steps = Steps };
-        var meshed = BoxMesh.Volume(mesh);
-        if (Math.Abs(meshed - volume) > 1e-6 * volume)
+        for (var index = 0; index < _boxes.Count; index++)
         {
-            throw new InvalidOperationException($"{layer}: the triangles enclose {meshed} mm3, the boxes {volume}.");
+            var box = _boxes[index].Box;
+            if (!_walls.Contains(index) && skin.InCornerPlan(box[0], box[1], box[3], box[4]))
+            {
+                throw new InvalidOperationException(
+                    $"Box {index} on {layer} ({box[0]:0.##}..{box[3]:0.##}, {box[1]:0.##}..{box[4]:0.##}) stands in a rounded corner " +
+                    "and would be bent with it. Move it, or make the corner radius smaller.");
+            }
+        }
+
+        var (vertices, faces, volume) = BoxMesh.Of(_boxes, skin);
+        BoxVolume = volume;
+        // A solid that is boxes and nothing else keeps them as its steps: in
+        // HelCAD they are how it was made, and working them out again gives
+        // this solid. Rounded, it is no longer what its boxes come to, and
+        // steps that did not lead to it would be worse than none.
+        var mesh = skin.Square
+            ? new MeshEntity(EntityId.New(), vertices, faces, layer) { Steps = Steps }
+            : new MeshEntity(EntityId.New(), vertices, faces, layer);
+        Volume = BoxMesh.Volume(mesh);
+        var lost = volume - Volume;
+        if (skin.Square ? Math.Abs(lost) > 1e-6 * volume : lost < 0 || lost > 0.03 * volume)
+        {
+            throw new InvalidOperationException($"{layer}: the triangles enclose {Volume} mm3, the boxes {volume}.");
         }
         return mesh;
     }
@@ -429,19 +656,25 @@ sealed class BoxSolid(string layer)
 /// faces with solid on one side only, gathered into the largest rectangles
 /// they make, and each rectangle is triangulated with every corner of every
 /// neighbour that falls on its outline taken in, so that no triangle ends
-/// part way along another's edge. Nothing is rounded anywhere: a corner is
-/// three of the boxes' own numbers.
+/// part way along another's edge. Nothing is rounded in the arithmetic: a
+/// corner is three of the boxes' own numbers.
+///
+/// A <see cref="Skin"/> may then bend the outside. It does not change which
+/// corners there are or which triangles join them; it moves corners, the same
+/// way for every solid it is given, so solids that fitted still fit and a
+/// surface that was closed is still closed.
 /// </remarks>
 static class BoxMesh
 {
-    /// <summary>The planes the boxes' faces lie on, across each axis.</summary>
-    private static double[][] Grid(IEnumerable<(SolidStepKind Kind, double[] Box)> boxes)
+    /// <summary>The planes the boxes' faces lie on, across each axis, and any the skin asks for.</summary>
+    private static double[][] Grid(IEnumerable<(SolidStepKind Kind, double[] Box)> boxes, Skin? skin = null)
     {
         var grid = new double[3][];
         for (var axis = 0; axis < 3; axis++)
         {
-            grid[axis] = [.. boxes.SelectMany(box => new[] { box.Box[axis], box.Box[axis + 3] })
-                .Select(value => Math.Round(value, 9)).Distinct().Order()];
+            var planes = boxes.SelectMany(box => new[] { box.Box[axis], box.Box[axis + 3] });
+            if (skin is not null) planes = planes.Concat(skin.Planes(axis));
+            grid[axis] = [.. planes.Select(value => Math.Round(value, 9)).Distinct().Order()];
         }
         return grid;
     }
@@ -490,9 +723,10 @@ static class BoxMesh
     }
 
     public static (List<Point3> Vertices, List<MeshFace> Faces, double Volume) Of(
-        IReadOnlyList<(SolidStepKind Kind, double[] Box)> boxes)
+        IReadOnlyList<(SolidStepKind Kind, double[] Box)> boxes, Skin? skin = null)
     {
-        var grid = Grid(boxes);
+        if (skin is { Square: true }) skin = null;
+        var grid = Grid(boxes, skin);
         int nx = grid[0].Length - 1, ny = grid[1].Length - 1, nz = grid[2].Length - 1;
         var solid = Cells(grid, boxes);
 
@@ -513,6 +747,7 @@ static class BoxMesh
 
         // The rectangles: across each axis, on each plane, facing each way.
         var rectangles = new List<(int Axis, int Plane, bool Up, int U0, int V0, int U1, int V1)>();
+        var alone = 0;
         var counts = new[] { nx, ny, nz };
         for (var axis = 0; axis < 3; axis++)
         {
@@ -522,6 +757,10 @@ static class BoxMesh
                 foreach (var up in new[] { true, false })
                 {
                     var open = new bool[counts[ua], counts[va]];
+                    // Where the skin bends the surface, cell faces are not
+                    // gathered freely: a rectangle may only be made of faces
+                    // with the same key, and nought is the key of all the rest.
+                    var keys = new int[counts[ua], counts[va]];
                     for (var u = 0; u < counts[ua]; u++)
                     for (var v = 0; v < counts[va]; v++)
                     {
@@ -531,19 +770,31 @@ static class BoxMesh
                         below[ua] = above[ua] = u;
                         below[va] = above[va] = v;
                         open[u, v] = up ? Solid(below) && !Solid(above) : Solid(above) && !Solid(below);
+                        if (!open[u, v] || skin is null) continue;
+                        var low = new double[3];
+                        var high = new double[3];
+                        low[axis] = high[axis] = grid[axis][plane];
+                        low[ua] = grid[ua][u]; high[ua] = grid[ua][u + 1];
+                        low[va] = grid[va][v]; high[va] = grid[va][v + 1];
+                        // In a bevel every face is on its own. In a rounded
+                        // corner a level face is on its own, and an upright
+                        // one may join only the faces above and below it.
+                        if (skin.InBevel(low, high)) keys[u, v] = ++alone;
+                        else if (skin.InCorner(low, high)) keys[u, v] = axis == 2 ? ++alone : -(1 + (axis == 0 ? u : v));
                     }
 
                     for (var u = 0; u < counts[ua]; u++)
                     for (var v = 0; v < counts[va]; v++)
                     {
                         if (!open[u, v]) continue;
+                        var key = keys[u, v];
                         var u1 = u + 1;
-                        while (u1 < counts[ua] && open[u1, v]) u1++;
+                        while (u1 < counts[ua] && open[u1, v] && keys[u1, v] == key) u1++;
                         var v1 = v + 1;
                         for (; v1 < counts[va]; v1++)
                         {
                             var whole = true;
-                            for (var uu = u; uu < u1 && whole; uu++) whole = open[uu, v1];
+                            for (var uu = u; uu < u1 && whole; uu++) whole = open[uu, v1] && keys[uu, v1] == key;
                             if (!whole) break;
                         }
                         for (var uu = u; uu < u1; uu++)
@@ -593,7 +844,11 @@ static class BoxMesh
             var key = (corner[0], corner[1], corner[2]);
             if (indexOf.TryGetValue(key, out var found)) return found;
             indexOf[key] = vertices.Count;
-            vertices.Add(new Point3(grid[0][corner[0]], grid[1][corner[1]], grid[2][corner[2]]));
+            var point = new Point3(grid[0][corner[0]], grid[1][corner[1]], grid[2][corner[2]]);
+            // The one place the skin acts: where a corner of the grid ends up.
+            // Which corners there are, and which triangles join them, was all
+            // decided on the square grid.
+            vertices.Add(skin is null ? point : skin.Bend(point));
             return vertices.Count - 1;
         }
 
@@ -631,6 +886,16 @@ static class BoxMesh
             // whose triangle is least of a sliver.
             var ring = outline.Select(Index).ToList();
             var at3 = outline.ToList();
+            // Which way the face looks once bent, to tell an ear from a notch:
+            // bending can leave a four-cornered face slightly hollow at one
+            // corner, and the triangle cut there would face the wrong way.
+            var facing = new Vector3(0, 0, 0);
+            for (var position = 0; position < ring.Count; position++)
+            {
+                var from = vertices[ring[position]] - Point3.Origin;
+                var to = vertices[ring[(position + 1) % ring.Count]] - Point3.Origin;
+                facing += from.Cross(to);
+            }
             while (ring.Count > 3)
             {
                 var best = -1;
@@ -647,7 +912,9 @@ static class BoxMesh
                     // make a triangle of.
                     if ((previous[ua] == next[ua] && (previous[ua] == u0 || previous[ua] == u1)) ||
                         (previous[va] == next[va] && (previous[va] == v0 || previous[va] == v1))) continue;
-                    var shape = Shape(vertices[Index(previous)], vertices[Index(current)], vertices[Index(next)]);
+                    Point3 p = vertices[Index(previous)], q = vertices[Index(current)], r = vertices[Index(next)];
+                    if ((q - p).Cross(r - q).Dot(facing) <= 0) continue;
+                    var shape = Shape(p, q, r);
                     if (shape > bestShape) { bestShape = shape; best = position; }
                 }
                 if (best < 0) throw new InvalidOperationException("A rectangle could not be triangulated.");
