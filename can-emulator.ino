@@ -121,14 +121,17 @@ static uint8_t  g_monNoise = 0;      // one bit per byte: changes by itself
 static uint8_t  g_monHot[8];         // display refreshes left to blink
 static bool     g_blink = false;
 #define MON_FIRST_ID_PAGE 2          // page 0 summary, page 1 who is awake
-// The four home-screen icons are two cells wide each, which takes all eight
-// user characters of the display: codes 1..7, and user character 0 addressed
-// as 8 (the HD44780 repeats them at 8..15, and 0 cannot sit in a C string).
-// An icon's right half is its left half's code plus one.
-#define ICON_BATTERY 1               // car battery
-#define ICON_KEY     3               // car key
-#define ICON_DASH    5               // instrument cluster
-#define ICON_OBD     7               // diagnostic socket
+// The display has eight user characters and the home screen uses them all:
+// seven for the icons and one for the radio wave, whose picture is redrawn in
+// place for each stage of its animation. The key gets by with one: its blade
+// is the display's own '-'.
+#define ICON_BATTERY 1               // car battery, codes 1 and 2
+#define ICON_KEY     3               // the bow of a car key
+#define ICON_DASH    4               // instrument cluster, codes 4 and 5
+#define ICON_OBD     6               // diagnostic socket, codes 6 and 7
+// User character 0, addressed as 8: the HD44780 repeats its user characters
+// at codes 8..15, and 0 cannot sit in the middle of a C string.
+#define ICON_WAVE    8
 static uint16_t g_fps      = 0;
 static uint16_t g_fpsCount = 0;
 static uint32_t g_nextFpsAt = 0;
@@ -624,8 +627,8 @@ static void serviceSerial() {
         Serial.print('|');
         for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
           char c = g_lcdShown[row][i];
-          // the icons' halves as Bb Kk Dd Oo
-          Serial.print(c >= ICON_BATTERY && c <= ICON_OBD + 1 ? "BbKkDdOo"[c - ICON_BATTERY] : c);
+          // battery Bb, key K, cluster Dd, socket Oo, the wave w
+          Serial.print(c >= ICON_BATTERY && c <= ICON_WAVE ? "BbKDdOow"[c - ICON_BATTERY] : c);
         }
         Serial.println('|');
       }
@@ -718,20 +721,35 @@ static void lcdVoltage(char *dst) {
 #endif
 }
 
-//   KL15 ON  X?12.3V    terminal state, X while set, supply voltage
-//   Bb Kk Dd Oo .))     four icons of two cells each, then the wave
-// The wave, a dot sending out arcs, keeps moving for as long as the traffic is
-// healthy: our frames go out and are acknowledged or, in listen-only, frames
-// keep coming in. While frames fail to go out it is replaced by '!' and the
-// number of failed frames, and by a dash when nothing moves. A '!' stays in
-// the last cell once any frame has failed. The wave is made of the display's
-// own characters because the icons use up every user character.
-// The icons, each a dash while it does not apply:
+// The radio wave: a dot in the corner and up to three arcs spreading from it.
+// Each stage is drawn into the same user character, so the cell on the glass
+// changes without being written again.
+static void lcdWaveStage(uint8_t stage) {
+  static const uint8_t pictures[4][8] PROGMEM = {
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10 },   // the source alone
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x04, 0x14 },   // one arc
+    { 0x00, 0x00, 0x00, 0x1C, 0x02, 0x19, 0x05, 0x15 },   // two arcs
+    { 0x00, 0x1C, 0x02, 0x1D, 0x02, 0x19, 0x05, 0x15 },   // three arcs
+  };
+  uint8_t rows[8];
+  memcpy_P(rows, pictures[stage & 3], 8);
+  g_lcd.createChar(ICON_WAVE & 7, rows);
+}
+
+//   LISTEN    ?12.3V    only what needs saying, and the supply voltage
+//   BbK-DdOo e 12  w    four icons, failed frames if any, the wave
+// The first line is empty at its left in normal running: the key icon says
+// whether the ignition is on. It names the exceptions: a failed boot check,
+// listen-only mode, cranking, Klemme X.
+// The icons, each two dashes while it does not apply:
 //   battery             Klemme 30: a supply voltage is being read; blinks when low
 //   car key             Klemme 15: ignition on, ours or in listen-only the car's
 //   instrument cluster  Klemme 58: the dimming message is on the bus
 //   diagnostic socket   a diagnostic tester is talking
-// A failed boot check takes the first line.
+// The wave in the corner keeps waving for as long as the traffic is healthy:
+// our frames go out and are acknowledged or, in listen-only, frames keep
+// coming in. It is '!' while frames fail to go out and a dash when nothing
+// moves.
 static void lcdIcon(char *dst, uint8_t icon) {
   dst[0] = (char)icon;
   dst[1] = (char)(icon + 1);
@@ -743,8 +761,7 @@ static void lcdHome(char *top, char *bottom) {
   else {
     lcdText(top, g_listenOnly ? PSTR("LISTEN")
                : g_state.kl_50 ? PSTR("CRANKING")
-               : g_state.kl_15 ? PSTR("KL15 ON") : PSTR("KL15 OFF"));
-    if (g_state.kl_x) top[9] = 'X';
+               : g_state.kl_x  ? PSTR("KL X") : PSTR(""));
     lcdVoltage(top + 10);
   }
 
@@ -754,35 +771,33 @@ static void lcdHome(char *top, char *bottom) {
 #if ENABLE_MIB_MESSAGES
   if (g_state.kl_15 && g_busOk && !g_listenOnly) lamp = true;   // ours is going out
 #endif
-  lcdText(bottom, PSTR("-- -- -- --"));
+  lcdText(bottom, PSTR("--------"));
 #if ENABLE_VOLTAGE
   if (recent(g_voltAt, VOLTAGE_STALE_MS)) {
     if (g_voltDv < VOLTAGE_LOW_DV && g_blink) bottom[0] = bottom[1] = ' ';
     else lcdIcon(bottom + 0, ICON_BATTERY);
   }
 #endif
-  if (ignition) lcdIcon(bottom + 3, ICON_KEY);
-  if (lamp)     lcdIcon(bottom + 6, ICON_DASH);
-  if (recent(g_testerAt, TESTER_HOLD_MS)) lcdIcon(bottom + 9, ICON_OBD);
+  if (ignition) bottom[2] = (char)ICON_KEY;      // the blade is the '-' already there
+  if (lamp)     lcdIcon(bottom + 4, ICON_DASH);
+  if (recent(g_testerAt, TESTER_HOLD_MS)) lcdIcon(bottom + 6, ICON_OBD);
 
-  // What moved since the last refresh decides what the wave does: the dot,
-  // then one arc, then two, and two once more before it starts over.
+  if (g_txErr) {
+    bottom[9] = 'e';
+    lcdNumber(bottom + 10, 3, g_txErr);     // 999 stands for "999 or more"
+  }
+
+  // What moved since the last refresh decides what the corner shows.
   static uint32_t seenTxOk = 0, seenTxErr = 0, seenRx = 0;
   static uint8_t stage = 0;
   bool moving = g_listenOnly ? g_rxCount != seenRx : g_txOk != seenTxOk;
-  if (g_txErr != seenTxErr) {
-    bottom[12] = '!';
-    lcdNumber(bottom + 13, 3, g_txErr);     // 999 stands for "999 or more"
-  } else {
-    if (!moving) bottom[12] = '-';
-    else {
-      bottom[12] = '.';
-      if (stage >= 1) bottom[13] = ')';
-      if (stage >= 2) bottom[14] = ')';
-    }
-    if (g_txErr) bottom[15] = '!';          // there have been failures
+  if (g_txErr != seenTxErr) bottom[15] = '!';
+  else if (!moving)         bottom[15] = '-';
+  else {
+    bottom[15] = (char)ICON_WAVE;
+    lcdWaveStage(stage);
+    stage = (uint8_t)((stage + 1) & 3);
   }
-  stage = (uint8_t)((stage + 1) & 3);
   seenTxOk = g_txOk; seenTxErr = g_txErr; seenRx = g_rxCount;
 }
 
@@ -979,23 +994,22 @@ void setup() {
 
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
-  // Left half, then right half, of each icon. On the glass there is a gap of
-  // one dot between the two cells.
-  static const uint8_t icons[8][8] PROGMEM = {
+  // On the glass there is a gap of one dot between two cells.
+  static const uint8_t icons[7][8] PROGMEM = {
     { 0x0C, 0x1F, 0x10, 0x12, 0x17, 0x12, 0x1F, 0x00 },   // battery: post, and the plus
     { 0x06, 0x1F, 0x01, 0x01, 0x1D, 0x01, 0x1F, 0x00 },   //          post, and the minus
     { 0x00, 0x0E, 0x1B, 0x11, 0x1B, 0x0E, 0x00, 0x00 },   // key: the bow
-    { 0x00, 0x00, 0x00, 0x1F, 0x05, 0x00, 0x00, 0x00 },   //      the blade and its teeth
     { 0x00, 0x07, 0x08, 0x10, 0x10, 0x11, 0x1F, 0x00 },   // cluster: a dial ...
     { 0x00, 0x1C, 0x02, 0x09, 0x11, 0x01, 0x1F, 0x00 },   //          ... and its needle
     { 0x1F, 0x15, 0x10, 0x17, 0x08, 0x0A, 0x07, 0x00 },   // diagnostic socket: two rows of
     { 0x1F, 0x15, 0x01, 0x1D, 0x02, 0x0A, 0x1C, 0x00 },   //          pins in a trapezoid
   };
-  for (uint8_t i = 0; i < 8; i++) {
+  for (uint8_t i = 0; i < 7; i++) {
     uint8_t rows[8];
     memcpy_P(rows, icons[i], 8);
-    g_lcd.createChar((ICON_BATTERY + i) & 7, rows);   // the eighth is user character 0
+    g_lcd.createChar(ICON_BATTERY + i, rows);
   }
+  lcdWaveStage(0);
   memset(g_lcdShown, ' ', sizeof g_lcdShown);
 #endif
 

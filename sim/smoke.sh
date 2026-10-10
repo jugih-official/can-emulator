@@ -19,13 +19,13 @@ expect() {
 }
 
 out=$(play 'run 1500')
-expect 'home, ignition off, voltage read'   '|KL15 OFF  ?12.0V|' "$out"
-expect 'battery icon only'                  '|Bb -- -- -- ' "$out"
+expect 'home, ignition off, voltage read'   '|          ?12.0V|' "$out"
+expect 'battery icon only'                  '|Bb------ ' "$out"
 
 out=$(play 'set tester 1' 'set volt 138' 'run 1500' 'press short' 'run 2500' 'run 250' 'run 250' 'run 250' 'run 250')
-expect 'ignition on, voltage follows'       '|KL15 ON   ?13.8V|' "$out"
-expect 'four icons, wave at its source'     '|Bb Kk Dd Oo .  ' "$out"
-expect 'wave fully out'                     '|Bb Kk Dd Oo .))' "$out"
+expect 'voltage follows'                    '|          ?13.8V|' "$out"
+expect 'four icons, wave at its source'     '|BbK-DdOo       0|' "$out"
+expect 'wave fully out'                     '|BbK-DdOo       3|' "$out"
 
 out=$(play 'run 1500')
 expect 'ignition restored after a reset'    'restored: Klemme 15 ON' "$out"
@@ -52,6 +52,6 @@ expect 'and recovered from'                 'MCP2515 re-init: ok' "$out"
 
 out=$(play 'set gateway 0' 'run 2500' 'ser s')
 expect 'nobody acknowledging: errors count' 'tec 128' "$out"
-expect 'wave gives way to the failure mark' '-- !' "$out"
+expect 'wave gives way to the failure mark' '  !|' "$out"
 
 exit $fail

@@ -95,7 +95,10 @@ size_t LiquidCrystal::write(uint8_t c) {
   lcdBusy();
   return 1;
 }
-void LiquidCrystal::createChar(uint8_t n, uint8_t rows[]) { memcpy(sim.cgram[n & 7], rows, 8); }
+void LiquidCrystal::createChar(uint8_t n, uint8_t rows[]) {
+  memcpy(sim.cgram[n & 7], rows, 8);
+  for (int i = 0; i < 9; i++) lcdBusy();      // one command and eight bytes
+}
 
 // --- MCP2515 -----------------------------------------------------------------
 // The library side: set-up and transmit.
@@ -344,9 +347,11 @@ static void reportJson() {
 }
 
 static void reportText() {
-  // The icons' two halves as Bb Kk Dd Oo. Codes 8..15 are the user characters
-  // once more, so 8 is user character 0.
-  static const char icons[] = "oBbKkDdO";
+  // Battery Bb, key K, cluster Dd, socket Oo. Codes 8..15 are the user
+  // characters once more, so 8 is user character 0: the wave, printed as the
+  // number of arcs its picture has at the moment.
+  char icons[] = "0BbKDdOo";
+  icons[0] = sim.cgram[0][1] ? '3' : sim.cgram[0][3] ? '2' : sim.cgram[0][5] ? '1' : '0';
   for (int r = 0; r < 2; r++) {
     putchar('|');
     for (int c = 0; c < 16; c++) {
