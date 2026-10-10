@@ -172,6 +172,22 @@ Klemme 50. The derivation is written up in
    `KL15 ON`. Hold the button for the menu: see
    [USAGE.md](docs/USAGE.md#the-button-and-the-menu).
 
+## Simulator
+
+The sketch also runs on a PC, with the LCD drawn in a browser and a simulated
+bench around it:
+
+```sh
+./sim/run.sh        # then open http://127.0.0.1:8515/
+```
+
+It is the real `can-emulator.ino`, compiled for the PC against stand-ins for
+the Arduino core, the MCP2515, the LCD and the EEPROM. The page has the
+button (click for a short press, hold for a long one), the serial console, and
+switches for what is on the bus: the gateway with its measured traffic, a
+radio, a diagnostic tester, a supply-voltage slider. See
+[USAGE.md](docs/USAGE.md#the-simulator).
+
 ## Tests
 
 ```sh

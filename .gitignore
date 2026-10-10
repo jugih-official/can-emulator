@@ -4,6 +4,9 @@ build/
 *.elf
 *.eep
 
+# Simulator build and its EEPROM file
+sim/build/
+
 # Host test binaries
 /tmp/mqb_klemmen_test
 test/t

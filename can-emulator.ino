@@ -865,7 +865,8 @@ static void lcdMonitor(char *top, char *bottom) {
   top[2] = hexDigit((uint8_t)id);
   top[13] = '/';
   lcdNumber(top + 11, 2, index + 1);
-  lcdNumber(top + 14, 2, g_statCount);
+  if (g_statCount < 10) top[14] = (char)('0' + g_statCount);   // "2/9", not "2/ 9"
+  else lcdNumber(top + 14, 2, g_statCount);
   if (g_monDlc == 0xFF) {
     lcdText(bottom, PSTR("waiting"));
     return;

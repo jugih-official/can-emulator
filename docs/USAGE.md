@@ -61,7 +61,7 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 14900 bytes (46%) of program storage space. Maximum is 32256 bytes.
+Sketch uses 14914 bytes (46%) of program storage space. Maximum is 32256 bytes.
 Global variables use 756 bytes (36%) of dynamic memory, leaving 1292 bytes...
 ```
 
@@ -382,6 +382,54 @@ All tunables live in [`config.h`](../config.h).
 To set the MIB's starting clock, edit the defaults in `ClockState`
 (`mqb_mib.h`). There is no RTC, so the time restarts from those values on every
 power-up and drifts with the AVR's ceramic resonator.
+
+## The simulator
+
+```sh
+./sim/run.sh
+```
+
+builds the simulator and serves it at <http://127.0.0.1:8515/>, on this
+machine only. It needs `g++`, `python3` and `arduino-cli`; no board.
+
+What runs is the sketch itself, not a copy of its logic: `arduino-cli`
+preprocesses `can-emulator.ino` and `g++` compiles the result against the
+stand-ins in `sim/mock/`. So the menu, the icons, the counters and the timing
+of the display are the firmware's own. What is simulated is everything around
+it:
+
+| On the page | What it stands for |
+|---|---|
+| The display | The LCD's memory, drawn dot by dot, with the four icons the sketch defines |
+| **Button** | The push button on D4. Click is a short press, holding it a long one; so is the space bar. |
+| **Reset** | A reset of the Uno. What it stored in EEPROM survives, so the ignition comes back. |
+| **Erase & reset** | A board that has never stored anything |
+| Gateway J533 | The IDs and rates measured on the bench, including `0x6B2` and network management as node `10` |
+| Radio | An invented unit: network management as node `5F` and a frame `3E5` whose byte 2 follows the knob slider. For the who-is-awake page and the learning view. |
+| Diagnostic tester | `0x700` every 2 s |
+| Car's own ignition | Another sender of `0x3C0` and `0x5F0`, for trying listen-only mode |
+| MCP2515 has 5 V | Off is the module's supply wire pulled out |
+| Supply voltage | Byte 0 of `0x663`, where the sketch reads the voltage |
+| What the emulator sends | Every frame the sketch transmitted, with its latest payload |
+
+Things to try: switch everything on the bus off and watch `e` count up; pull
+the module's 5 V and put it back; open the bus monitor, go to `3E5`, wait for
+`learn` to end and move the knob.
+
+The simulated bus is honest about one limit of the real board: the MCP2515
+holds two received frames, writing a character to the LCD takes 0.3 ms during
+which nothing is fetched, and frames that arrive meanwhile are lost.
+
+`./sim/smoke.sh` runs the sketch through its screens without the page and
+checks what the display shows; `./check.sh` includes it. For a scripted look
+at one screen, drive the simulator directly:
+
+```sh
+printf 'run 1500\npress long\npress short\n' | ./sim/build/sim --text
+```
+
+The glyphs are a generic 5×8 pixel font, not the HD44780's own character ROM,
+so letter shapes differ slightly from the real display.
 
 ## Tests
 
