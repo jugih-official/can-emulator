@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 15106 bytes (46%) of program storage space. Maximum is 32256 bytes.
-Global variables use 770 bytes (37%) of dynamic memory, leaving 1278 bytes...
+Sketch uses 15152 bytes (46%) of program storage space. Maximum is 32256 bytes.
+Global variables use 777 bytes (37%) of dynamic memory, leaving 1271 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -238,17 +238,17 @@ A 16×2 LCD on **A0–A5** (`ENABLE_LCD`, on by default) shows the state without
 laptop. The home screen:
 
 ```
-KL15 ON  X~12.3V    Klemme 15 on or off, X while Klemme X is set, supply voltage
-BKLT tx/ rx\        four icons and two pendulums
+KL15 ON  X?12.3V    Klemme 15 on or off, X while Klemme X is set, supply voltage
+BKLT w              four icons and the radio-wave symbol
 ```
 
-The pendulums show that things are moving. `tx` swings for as long as the
-emulator's frames go out and are acknowledged; `rx` swings for as long as
-frames come in from the bus. One that stands still as a dash means that
-direction has stopped: `tx-` in listen-only mode, `rx-` on a silent bus. `tx!`
-means frames are failing to send right now, usually because nothing on the bus
-acknowledges them. Once any frame has failed, the count stays at the end of
-the line, `e12`, where `e99` means 99 or more; the exact totals are in `s` on the console.
+The radio-wave symbol, a dot with arcs spreading from it, shows that the
+traffic is alive. It keeps waving for as long as the emulator's frames go out
+and are acknowledged; in listen-only mode, for as long as frames come in. It
+is replaced by `!` while frames are failing to send, usually because nothing
+on the bus acknowledges them, and by a dash when nothing moves at all. Once
+any frame has failed, the count stays at the end of the line, `e12`, where
+`e99` means 99 or more; the exact totals are in `s` on the console.
 
 The first line reads `CRANKING` while Klemme 50 is held. The four icons are
 drawn on the glass as a battery, a key, a lamp and a plug; each is a dash while
@@ -264,9 +264,9 @@ it does not apply:
 **The voltage** is read from the bus, not measured by the Arduino: one byte of
 a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and
 `VOLTAGE_MV_PER_BIT`. The default, byte 0 of `0x663` at 0.1 V per bit, is a
-candidate and has not been confirmed, which is why the value carries a `~`.
+candidate and has not been confirmed, which is why the value carries a `?`.
 To confirm it, turn the bench supply up and down and watch the display follow;
-then set `VOLTAGE_VERIFIED 1` and the `~` goes. If it does not follow, find the
+then set `VOLTAGE_VERIFIED 1` and the `?` goes. If it does not follow, find the
 right byte with the learning view, changing the supply voltage as the thing
 you do. `--.-V` means the frame is not on the bus.
 
@@ -380,7 +380,7 @@ All tunables live in [`config.h`](../config.h).
 | `ENABLE_VOLTAGE` | 1 | Show the supply voltage read from the bus |
 | `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` | `0x663`, 0 | Where the voltage is read. A candidate until confirmed. |
 | `VOLTAGE_MV_PER_BIT`, `VOLTAGE_OFFSET_MV` | 100, 0 | Its scaling |
-| `VOLTAGE_VERIFIED` | 0 | 1 removes the `~` in front of the value |
+| `VOLTAGE_VERIFIED` | 0 | 1 removes the `?` in front of the value |
 | `VOLTAGE_LOW_DV` | 115 | Below this, in tenths of a volt, the battery icon blinks |
 | `TESTER_HOLD_MS` | 3000 | How long a diagnostic frame keeps the plug icon on |
 | `NM_MAX_NODES`, `NM_AWAKE_MS` | 6, 3000 | Size and memory of the who-is-awake list |
@@ -418,7 +418,7 @@ it:
 | Car's own ignition | Another sender of `0x3C0` and `0x5F0`, for trying listen-only mode |
 | MCP2515 has 5 V | Off is the module's supply wire pulled out |
 | Supply voltage | Byte 0 of `0x663`, where the sketch reads the voltage |
-| What the emulator sends | Every frame the sketch transmitted, with its latest payload |
+| Frames on the bus | Every frame the sketch sent and every frame the bench sends it, each with what it is, a count and its latest payload |
 
 Things to try: switch everything on the bus off and watch `e` count up; pull
 the module's 5 V and put it back; open the bus monitor, go to `3E5`, wait for
@@ -437,7 +437,9 @@ printf 'run 1500\npress long\npress short\n' | ./sim/build/sim --text
 ```
 
 The glyphs are a generic 5×8 pixel font, not the HD44780's own character ROM,
-so letter shapes differ slightly from the real display.
+so letter shapes differ slightly from the real display. Where the display's
+character set differs from ASCII the simulator follows the display: `~` is a
+right arrow there and `\` a yen sign.
 
 ## Tests
 

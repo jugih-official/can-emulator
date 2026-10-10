@@ -21,6 +21,11 @@ for code in range(32, 127):
     glyphs[str(code)] = [
         sum((1 << (4 - x)) for x in range(5) if image.getpixel((x, y))) for y in range(8)
     ]
+# The HD44780 (ROM A00) has arrows where ASCII has '~' and DEL, and a yen sign
+# for the backslash.
+glyphs["126"] = [0b00000, 0b00100, 0b00010, 0b11111, 0b00010, 0b00100, 0b00000, 0b00000]
+glyphs["127"] = [0b00000, 0b00100, 0b01000, 0b11111, 0b01000, 0b00100, 0b00000, 0b00000]
+glyphs["92"]  = [0b10001, 0b01010, 0b11111, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000]
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "font5x8.json")
 with open(out, "w") as f:
     json.dump(glyphs, f, separators=(",", ":"))

@@ -190,33 +190,36 @@ struct Periodic {
   uint8_t  data[8];
   uint32_t next;
   uint8_t  counter;
+  uint32_t sent;          // frames put on the wire, and the latest of them
+  uint8_t  last[8];
+  uint8_t  dlc;
 };
 
 // The gateway's frames and rates are the ones measured on the bench; the
 // payloads are the captured ones where one was captured, zeros otherwise.
 static std::vector<Periodic> g_frames = {
-  { GATEWAY, 0x3DC,       false,   50, { 0xFF, 0x01, 0, 0, 0, 0x01, 0, 0 }, 0, 0 },
-  { GATEWAY, 0x5AC,       false,  100, { 0 }, 0, 0 },
-  { GATEWAY, 0x663,       false,  100, { 0x78, 0x28, 0x20, 0x0E, 0x1F, 0x9B, 0x2C, 0x00 }, 0, 0 },
-  { GATEWAY, 0x48B,       false,  100, { 0 }, 0, 0 },
-  { GATEWAY, 0x3DA,       false,  100, { 0 }, 0, 0 },
-  { GATEWAY, 0x3EB,       false,  100, { 0xFF, 0xFE, 0, 0, 0, 0, 0, 0 }, 0, 0 },
-  { GATEWAY, 0x569,       false,  500, { 0 }, 0, 0 },
-  { GATEWAY, 0x585,       false, 1000, { 0 }, 0, 0 },
-  { GATEWAY, 0x6B2,       false, 1000, { 0 }, 0, 0 },
-  { GATEWAY, 0x386,       false, 1000, { 0 }, 0, 0 },
-  { GATEWAY, 0x5F5,       false, 1000, { 0 }, 0, 0 },
-  { GATEWAY, 0x5F7,       false, 1000, { 0 }, 0, 0 },
-  { GATEWAY, 0x1B000010,  true,   200, { 0x10, 0x04, 0, 0, 0, 0, 0, 0 }, 0, 0 },
-  { GATEWAY, 0x17332310,  true,  1000, { 0 }, 0, 0 },
+  { GATEWAY, 0x3DC,       false,   50, { 0xFF, 0x01, 0, 0, 0, 0x01, 0, 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x5AC,       false,  100, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x663,       false,  100, { 0x78, 0x28, 0x20, 0x0E, 0x1F, 0x9B, 0x2C, 0x00 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x48B,       false,  100, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x3DA,       false,  100, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x3EB,       false,  100, { 0xFF, 0xFE, 0, 0, 0, 0, 0, 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x569,       false,  500, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x585,       false, 1000, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x6B2,       false, 1000, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x386,       false, 1000, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x5F5,       false, 1000, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x5F7,       false, 1000, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x1B000010,  true,   200, { 0x10, 0x04, 0, 0, 0, 0, 0, 0 }, 0, 0, 0, { 0 }, 0 },
+  { GATEWAY, 0x17332310,  true,  1000, { 0 }, 0, 0, 0, { 0 }, 0 },
   // An invented radio: network management as node 5F, and one frame whose
   // byte 2 follows the "knob", for trying the learning view.
-  { RADIO,   0x1B00005F,  true,   200, { 0x5F, 0x04, 0, 0, 0, 0, 0, 0 }, 0, 0 },
-  { RADIO,   0x3E5,       false,  100, { 0 }, 0, 0 },
-  { TESTER,  0x700,       false, 2000, { 0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55 }, 0, 0 },
+  { RADIO,   0x1B00005F,  true,   200, { 0x5F, 0x04, 0, 0, 0, 0, 0, 0 }, 0, 0, 0, { 0 }, 0 },
+  { RADIO,   0x3E5,       false,  100, { 0 }, 0, 0, 0, { 0 }, 0 },
+  { TESTER,  0x700,       false, 2000, { 0x02, 0x3E, 0x80, 0x55, 0x55, 0x55, 0x55, 0x55 }, 0, 0, 0, { 0 }, 0 },
   // A complete car's own terminal status and dimming, for listen-only mode.
-  { CAR,     0x3C0,       false,  100, { 0x00, 0x00, 0x03, 0x00, 0, 0, 0, 0 }, 0, 0 },
-  { CAR,     0x5F0,       false,  500, { 0 }, 0, 0 },
+  { CAR,     0x3C0,       false,  100, { 0x00, 0x00, 0x03, 0x00, 0, 0, 0, 0 }, 0, 0, 0, { 0 }, 0 },
+  { CAR,     0x5F0,       false,  500, { 0 }, 0, 0, 0, { 0 }, 0 },
 };
 
 // Frames that are due go onto the wire one after the other, about a quarter
@@ -258,6 +261,9 @@ static void busTick() {
     if (p.id == 0x3E5) { f.data[0] = p.counter & 0x0F; f.data[2] = g_knob; }
 
     g_wire.push_back(f);
+    p.sent++;
+    p.dlc = f.dlc;
+    memcpy(p.last, f.data, 8);
   }
 }
 
@@ -315,6 +321,18 @@ static void reportJson() {
     o += b;
     first = false;
   }
+  static const char *const who[NODE_COUNT] = { "gateway", "radio", "tester", "car" };
+  o += "],\"bus\":[";
+  first = true;
+  for (const Periodic &p : g_frames) {
+    if (!g_node[p.node] || !p.sent) continue;
+    char row[160], hex[24] = "";
+    for (int i = 0; i < p.dlc; i++) snprintf(hex + 2 * i, 3, "%02X", p.last[i]);
+    snprintf(row, sizeof row, "%s{\"from\":\"%s\",\"id\":\"%lX\",\"n\":%lu,\"data\":\"%s\"}", first ? "" : ",",
+             who[p.node], (unsigned long)p.id, (unsigned long)p.sent, hex);
+    o += row;
+    first = false;
+  }
   char b[200];
   snprintf(b, sizeof b, "],\"bench\":{\"gateway\":%d,\"radio\":%d,\"tester\":%d,\"car\":%d,\"power\":%d,\"volt\":%d,\"knob\":%d,\"btn\":%d}",
            g_node[GATEWAY], g_node[RADIO], g_node[TESTER], g_node[CAR], sim.power, g_voltDv, g_knob, sim.buttonDown);
@@ -326,12 +344,14 @@ static void reportJson() {
 }
 
 static void reportText() {
-  static const char icons[] = "?BKLT/\\?";
+  // The icons as B K L T and the wave's four stages as 0..3. Codes 8..15 are
+  // the user characters once more.
+  static const char icons[] = "0BKLT123";
   for (int r = 0; r < 2; r++) {
     putchar('|');
     for (int c = 0; c < 16; c++) {
       uint8_t ch = sim.ddram[r][c];
-      putchar(ch < 8 ? icons[ch] : ch);
+      putchar(ch < 16 ? icons[ch & 7] : ch);
     }
     puts("|");
   }

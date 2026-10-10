@@ -58,7 +58,7 @@
 // 0x663 with 0x78 (120) in byte 0 in one bench capture, the supply voltage at
 // that moment was not noted, and no public DBC names that frame. Until it has been checked -- turn the supply up and
 // down and watch the value follow -- leave VOLTAGE_VERIFIED at 0 and the
-// display marks the value with '~'.
+// display marks the value with '?'.
 #define ENABLE_VOLTAGE        1
 #define VOLTAGE_CAN_ID        0x663
 #define VOLTAGE_BYTE          0

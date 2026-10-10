@@ -46,9 +46,17 @@
   .slider div { display: flex; justify-content: space-between; }
   input[type=range] { width: 100%; }
 
-  table { width: 100%; border-collapse: collapse; font: 12px/1.5 ui-monospace, Menlo, Consolas, monospace; }
-  th { text-align: left; color: var(--dim); font-weight: 500; }
-  td, th { padding: 1px 6px 1px 0; }
+  .wide { grid-column: 1 / -1; }
+  .scroll { overflow-x: auto; }
+  table { width: 100%; min-width: 640px; border-collapse: collapse; table-layout: fixed;
+          font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+  th { text-align: left; color: var(--dim); font-weight: 500; border-bottom: 1px solid var(--line); }
+  td, th { padding: 2px 10px 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  col.c-dir { width: 130px; } col.c-id { width: 96px; } col.c-n { width: 80px; } col.c-data { width: 200px; }
+  td.n, th.n { text-align: right; }
+  tr.sent td:first-child { color: var(--ok); }
+  td.what { font-family: system-ui, sans-serif; font-size: 13px; }
+  td.what small { color: var(--dim); }
   .mode { font-weight: 600; }
   pre { margin: 0; height: 230px; overflow: auto; background: #0d1014; border-radius: 4px; padding: 8px;
         font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace; white-space: pre-wrap; }
@@ -109,9 +117,19 @@
     </div>
 
     <div class="panel">
-      <h2>What the emulator sends</h2>
-      <div>Controller: <span class="mode" id="mode"></span></div>
-      <table id="tx"><thead><tr><th>ID</th><th>frames</th><th>ago</th><th>data</th></tr></thead><tbody></tbody></table>
+      <h2>MCP2515</h2>
+      <div>Controller mode: <span class="mode" id="mode"></span></div>
+    </div>
+  </div>
+
+  <div class="panel wide">
+    <h2>Frames on the bus</h2>
+    <div class="scroll">
+      <table id="frames">
+        <colgroup><col class="c-dir"><col class="c-id"><col><col class="c-n"><col class="c-data"></colgroup>
+        <thead><tr><th>Direction</th><th>ID</th><th>What it is</th><th class="n">Frames</th><th>Latest data</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 </main>
@@ -124,8 +142,27 @@ canvas.height = 2 * CELL_H + ROW_GAP + 12;
 const ctx = canvas.getContext('2d');
 let font = {}, state = null, busy = false;
 
+// What each ID is. Names in capitals-and-underscores are from the public
+// opendbc database; the rest is described as what was observed.
+const WHAT = {
+  '3C0': ['Klemmen_Status_01', 'terminal status: Klemme S, 15, X, 50'],
+  '5F0': ['Dimmung_01', 'display dimming, Klemme 58'],
+  '6B2': ['Diagnose_01', 'clock and odometer'],
+  '3DC': ['Gateway_73', 'gear and parking brake'],
+  '585': ['Systeminfo_01', 'system and bus state'],
+  '569': ['HVEM_04', ''],
+  '663': ['', 'not in the public database; byte 0 is the voltage candidate'],
+  '1B000010': ['NMH_Gateway', 'network management, node 10'],
+  '1B00005F': ['', 'network management, node 5F (the invented radio)'],
+  '3E5': ['', 'invented radio frame; byte 2 follows the knob'],
+  '700': ['', 'tester present, to all control units'],
+};
+function what(id) {
+  return WHAT[id] || ['', 'not in the public database'];
+}
+
 function glyph(code, cg) {
-  if (code < 8) return cg[code];
+  if (code < 16) return cg[code & 7];          // 8..15 repeat the user characters
   return font[code] || font[63] || [0, 0, 0, 0, 0, 0, 0, 0];
 }
 
@@ -150,16 +187,7 @@ function render(s) {
   state = s;
   drawLcd(s);
   document.getElementById('mode').textContent = s.mode;
-  const body = document.querySelector('#tx tbody');
-  body.innerHTML = s.tx.length ? '' : '<tr><td colspan="4" style="color:var(--dim)">nothing yet</td></tr>';
-  for (const f of s.tx) {
-    const tr = document.createElement('tr');
-    const ago = f.age < 1000 ? f.age + ' ms' : (f.age / 1000).toFixed(1) + ' s';
-    for (const v of [f.id, f.n, ago, f.data.replace(/(..)/g, '$1 ').trim()]) {
-      const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
-    }
-    body.appendChild(tr);
-  }
+  renderFrames(s);
   for (const box of document.querySelectorAll('[data-set]')) {
     if (document.activeElement !== box) box.checked = !!s.bench[box.dataset.set];
   }
@@ -174,6 +202,44 @@ function render(s) {
     const stick = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
     pre.textContent = s.ser;
     if (stick) pre.scrollTop = pre.scrollHeight;
+  }
+}
+
+// One row per ID, kept in place and only its numbers updated, so that the
+// table does not jump: the emulator's own frames first, then what it receives.
+const rows = new Map();
+function renderFrames(s) {
+  const body = document.querySelector('#frames tbody');
+  const wanted = [];
+  for (const f of s.tx) wanted.push(['sent', 'emulator sends', f]);
+  for (const f of s.bus) wanted.push([f.from, 'from ' + f.from, f]);
+  const keys = new Set();
+  for (const [group, label, f] of wanted) {
+    const key = group + ':' + f.id;
+    keys.add(key);
+    let row = rows.get(key);
+    if (!row) {
+      const tr = document.createElement('tr');
+      if (group === 'sent') tr.className = 'sent';
+      const cells = [];
+      for (let i = 0; i < 5; i++) { const td = document.createElement('td'); tr.appendChild(td); cells.push(td); }
+      cells[0].textContent = label;
+      cells[1].textContent = f.id;
+      const [name, note] = what(f.id);
+      cells[2].className = 'what';
+      cells[2].textContent = name;
+      if (note) { const small = document.createElement('small'); small.textContent = (name ? '  ' : '') + note; cells[2].appendChild(small); }
+      cells[3].className = 'n';
+      // the emulator's rows stay on top
+      if (group === 'sent') body.insertBefore(tr, body.querySelector('tr:not(.sent)')); else body.appendChild(tr);
+      row = { tr, cells };
+      rows.set(key, row);
+    }
+    row.cells[3].textContent = f.n;
+    row.cells[4].textContent = f.data.replace(/(..)/g, '$1 ').trim();
+  }
+  for (const [key, row] of rows) {
+    if (!keys.has(key)) { row.tr.remove(); rows.delete(key); }
   }
 }
 

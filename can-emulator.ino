@@ -125,8 +125,14 @@ static bool     g_blink = false;
 #define ICON_KEY     2
 #define ICON_LAMP    3
 #define ICON_PLUG    4
-#define ICON_TICK    5               // the pendulum to one side ...
-#define ICON_TOCK    6               // ... and to the other
+// The radio-wave symbol in four stages, shown one after the other so that it
+// waves. Its first stage is user character 0, addressed as 8: the HD44780
+// repeats its eight user characters at codes 8..15, and 0 cannot sit in the
+// middle of a C string.
+#define ICON_WAVE_1  5
+#define ICON_WAVE_2  6
+#define ICON_WAVE_3  7
+#define ICON_WAVE_0  8
 static uint16_t g_fps      = 0;
 static uint16_t g_fpsCount = 0;
 static uint32_t g_nextFpsAt = 0;
@@ -622,7 +628,8 @@ static void serviceSerial() {
         Serial.print('|');
         for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
           char c = g_lcdShown[row][i];
-          Serial.print(c >= ICON_BATTERY && c <= ICON_TOCK ? "BKLT/\\"[c - ICON_BATTERY] : c);
+          // the icons as B K L T, the wave's four stages as 0..3
+          Serial.print(c >= ICON_BATTERY && c <= ICON_WAVE_0 ? "BKLT1230"[c - ICON_BATTERY] : c);
         }
         Serial.println('|');
       }
@@ -696,7 +703,7 @@ static void lcdTwoDigits(char *dst, uint8_t v) {
   dst[1] = (char)('0' + v % 10);
 }
 
-// The supply voltage as six characters: " 12.3V", or "~12.3V" while the frame
+// The supply voltage as six characters: " 12.3V", or "?12.3V" while the frame
 // it is read from has not been confirmed for this car (VOLTAGE_VERIFIED).
 static void lcdVoltage(char *dst) {
 #if ENABLE_VOLTAGE
@@ -704,7 +711,8 @@ static void lcdVoltage(char *dst) {
     memcpy_P(dst, PSTR(" --.-V"), 6);
     return;
   }
-  dst[0] = VOLTAGE_VERIFIED ? ' ' : '~';
+  // Not '~': the display's own character set has an arrow at that code.
+  dst[0] = VOLTAGE_VERIFIED ? ' ' : '?';
   lcdNumber(dst + 1, 2, g_voltDv / 10);
   dst[3] = '.';
   dst[4] = (char)('0' + g_voltDv % 10);
@@ -714,12 +722,12 @@ static void lcdVoltage(char *dst) {
 #endif
 }
 
-//   KL15 ON  X~12.3V    terminal state, X while set, supply voltage
-//   BKLT tx/ rx\        four icons and two pendulums
-// A pendulum swings for as long as frames keep going out (tx) or coming in
-// (rx), and stands still as a dash when they stop. tx shows '!' while frames
-// fail to send; the number of failed frames appears at the end once there are
-// any.
+//   KL15 ON  X?12.3V    terminal state, X while set, supply voltage
+//   BKLT w              four icons, then the radio-wave symbol
+// The wave keeps waving for as long as the traffic is healthy: our frames go
+// out and are acknowledged or, in listen-only, frames keep coming in. It turns
+// into '!' while frames fail to go out and into a dash when nothing moves. The
+// number of failed frames appears at the end of the line once there are any.
 // The icons, each a dash while it does not apply:
 //   B battery  Klemme 30: a supply voltage is being read; blinks when it is low
 //   K key      Klemme 15: ignition on, ours or in listen-only the car's
@@ -755,11 +763,11 @@ static void lcdHome(char *top, char *bottom) {
 
   // What moved since the last refresh decides what each pendulum does.
   static uint32_t seenTxOk = 0, seenTxErr = 0, seenRx = 0;
-  char swing = (char)(g_blink ? ICON_TICK : ICON_TOCK);
-  bottom[5] = 't'; bottom[6] = 'x';
-  bottom[7] = g_txErr != seenTxErr ? '!' : g_txOk != seenTxOk ? swing : '-';
-  bottom[9] = 'r'; bottom[10] = 'x';
-  bottom[11] = g_rxCount != seenRx ? swing : '-';
+  static const char stages[4] = { ICON_WAVE_0, ICON_WAVE_1, ICON_WAVE_2, ICON_WAVE_3 };
+  static uint8_t stage = 0;
+  bool moving = g_listenOnly ? g_rxCount != seenRx : g_txOk != seenTxOk;
+  bottom[5] = g_txErr != seenTxErr ? '!' : moving ? stages[stage] : '-';
+  stage = (uint8_t)((stage + 1) & 3);
   seenTxOk = g_txOk; seenTxErr = g_txErr; seenRx = g_rxCount;
   if (g_txErr) {
     bottom[13] = 'e';
@@ -960,18 +968,20 @@ void setup() {
 
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
-  static const uint8_t icons[6][8] PROGMEM = {
+  static const uint8_t icons[8][8] PROGMEM = {
     { 0x0E, 0x1B, 0x11, 0x11, 0x11, 0x11, 0x1F, 0x00 },   // battery
     { 0x06, 0x09, 0x09, 0x06, 0x04, 0x06, 0x04, 0x06 },   // key
     { 0x0E, 0x11, 0x11, 0x11, 0x0E, 0x0E, 0x04, 0x00 },   // lamp
     { 0x0A, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0x04 },   // plug
-    { 0x04, 0x04, 0x08, 0x08, 0x10, 0x18, 0x18, 0x00 },   // pendulum, left
-    { 0x04, 0x04, 0x02, 0x02, 0x01, 0x03, 0x03, 0x00 },   // pendulum, right
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x04, 0x14 },   // wave: the source and one arc
+    { 0x00, 0x00, 0x00, 0x1C, 0x02, 0x19, 0x05, 0x15 },   // wave: two arcs
+    { 0x00, 0x1C, 0x02, 0x1D, 0x02, 0x19, 0x05, 0x15 },   // wave: three arcs
+    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10 },   // wave: the source alone
   };
-  for (uint8_t i = 0; i < 6; i++) {
+  for (uint8_t i = 0; i < 8; i++) {
     uint8_t rows[8];
     memcpy_P(rows, icons[i], 8);
-    g_lcd.createChar(ICON_BATTERY + i, rows);
+    g_lcd.createChar((ICON_BATTERY + i) & 7, rows);   // the eighth is user character 0
   }
   memset(g_lcdShown, ' ', sizeof g_lcdShown);
 #endif
