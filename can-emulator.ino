@@ -12,6 +12,7 @@
 // bus monitor and listen-only mode. Serial console at 115200 gives the same
 // control plus a sniffer. See README.md for wiring.
 // ---------------------------------------------------------------------------
+#include <EEPROM.h>
 #include <SPI.h>
 #include <mcp_can.h>
 
@@ -109,6 +110,42 @@ static LiquidCrystal g_lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6
 static char     g_lcdShown[2][16];   // what is on the glass, so only changes get written
 static uint32_t g_nextLcdAt = 0;
 #endif
+
+// --- state that survives a reset ---------------------------------------------
+// Ignition, Klemme X and listen-only are kept in EEPROM, so a reset -- a PC
+// opening the serial port is one -- or a power cut does not drop the ignition
+// under a tester that is in the middle of flashing a control unit. Three
+// bytes: a marker, the flags, and the flags inverted as a check. A byte is
+// only written when it differs, so the wear is one write per change.
+#define STATE_MARKER    0xC5
+#define STATE_KL15      0x01
+#define STATE_KLX       0x02
+#define STATE_LISTEN    0x04
+
+static void saveState() {
+#if REMEMBER_STATE
+  uint8_t flags = (g_state.kl_15 ? STATE_KL15 : 0) | (g_state.kl_x ? STATE_KLX : 0) |
+                  (g_listenOnly ? STATE_LISTEN : 0);
+  EEPROM.update(STATE_EEPROM_ADDR,     STATE_MARKER);
+  EEPROM.update(STATE_EEPROM_ADDR + 1, flags);
+  EEPROM.update(STATE_EEPROM_ADDR + 2, (uint8_t)~flags);
+#endif
+}
+
+// False when nothing valid is stored: a new board, or a torn write.
+static bool loadState() {
+#if REMEMBER_STATE
+  uint8_t flags = EEPROM.read(STATE_EEPROM_ADDR + 1);
+  if (EEPROM.read(STATE_EEPROM_ADDR) != STATE_MARKER) return false;
+  if (EEPROM.read(STATE_EEPROM_ADDR + 2) != (uint8_t)~flags) return false;
+  g_state.kl_15 = g_state.kl_s = flags & STATE_KL15;
+  g_state.kl_x  = flags & STATE_KLX;
+  g_listenOnly  = flags & STATE_LISTEN;
+  return true;
+#else
+  return false;
+#endif
+}
 
 // --- MCP2515, the parts the library is not trusted with ---------------------
 // mcp_can 1.5.1 copies as many data bytes as the DLC register says, up to 15,
@@ -218,6 +255,7 @@ static bool sendFrame(uint16_t id, uint8_t dlc, uint8_t *data) {
 // trace on the bus at all -- the mode for a real, running car.
 static void setListenOnly(bool on) {
   g_listenOnly = on;
+  saveState();
   if (g_busOk) CAN.setMode(on ? MCP_LISTENONLY : MCP_NORMAL);
 #if ENABLE_SERIAL_CONTROL
   Serial.print(F("listen-only: "));
@@ -232,6 +270,7 @@ static void setIgnition(bool on) {
     g_state.kl_50 = false;
     g_kl50EndsAt  = 0;
   }
+  saveState();
 #if ENABLE_STATUS_LED
   digitalWrite(STATUS_LED_PIN, on ? HIGH : LOW);
 #endif
@@ -305,7 +344,7 @@ static uint8_t pollButton() {
 // switches and screen changes act once per press.
 static void menuAction(bool repeat) {
   switch (g_item) {
-    case ITEM_KL_X:   if (!repeat) g_state.kl_x = !g_state.kl_x; break;
+    case ITEM_KL_X:   if (!repeat) { g_state.kl_x = !g_state.kl_x; saveState(); } break;
     case ITEM_KL_50:  pulseKl50(); break;          // held: keeps cranking
 #if ENABLE_MIB_MESSAGES
     case ITEM_DIMMING:
@@ -486,7 +525,7 @@ static void serviceSerial() {
     case '1': setIgnition(true);  break;
     case '0': setIgnition(false); break;
     case 't': setIgnition(!g_state.kl_15); break;
-    case 'x': g_state.kl_x = !g_state.kl_x;
+    case 'x': g_state.kl_x = !g_state.kl_x; saveState();
               Serial.print(F("Klemme X: ")); Serial.println(g_state.kl_x); break;
     case '5': pulseKl50(); break;
     case 's': printStatus(); break;
@@ -723,6 +762,11 @@ void setup() {
   digitalWrite(STATUS_LED_PIN, LOW);
 #endif
   g_selfTestOk = mqbChecksumSelfTest();
+  bool restored = loadState();
+  (void)restored;
+#if ENABLE_STATUS_LED
+  digitalWrite(STATUS_LED_PIN, g_state.kl_15 ? HIGH : LOW);
+#endif
 
 #if ENABLE_SERIAL_CONTROL
   Serial.begin(115200);
@@ -738,6 +782,11 @@ void setup() {
 #if ENABLE_SERIAL_CONTROL
   Serial.print(F("MCP2515 init: "));
   Serial.println(g_busOk ? F("ok") : F("FAILED -- check wiring and crystal"));
+  if (restored) {
+    Serial.print(F("restored: Klemme 15 "));
+    Serial.print(g_state.kl_15 ? F("ON") : F("OFF"));
+    Serial.println(g_state.kl_x ? F(", Klemme X on") : F(""));
+  }
   if (g_listenOnly) Serial.println(F("listen-only: ON, transmitting nothing"));
   printHelp();
 #endif

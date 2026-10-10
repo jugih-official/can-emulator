@@ -61,7 +61,7 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 12750 bytes (39%) of program storage space. Maximum is 32256 bytes.
+Sketch uses 13148 bytes (40%) of program storage space. Maximum is 32256 bytes.
 Global variables use 694 bytes (33%) of dynamic memory, leaving 1354 bytes...
 ```
 
@@ -83,6 +83,11 @@ b short press   B long press   v what the LCD shows
 ```
 
 Both `PASS` and `ok` are required.
+
+Klemme 15, Klemme X and listen-only are remembered in EEPROM
+(`REMEMBER_STATE`). After a reset or a power cut the board comes back as it
+was and says so: `restored: Klemme 15 ON`. A board that has never stored
+anything starts with the ignition off.
 
 - `checksum self-test: FAIL` — the code has been modified incorrectly. Run
   `./test/run.sh` to see which case broke.
@@ -313,7 +318,9 @@ All tunables live in [`config.h`](../config.h).
 | `HEALTH_CHECK_MS` | 1000 | How often the controller's mode is checked |
 | `BUS_RETRY_MS` | 3000 | How often a controller that does not answer is tried again |
 | `ENABLE_SERIAL_CONTROL` | 1 | Serial console; disable to save flash |
-| `LISTEN_ONLY_DEFAULT` | 0 | Come up transmitting nothing; for a real car |
+| `LISTEN_ONLY_DEFAULT` | 0 | Come up transmitting nothing; for a real car. With `REMEMBER_STATE`, only until a state has been stored. |
+| `REMEMBER_STATE` | 1 | Keep Klemme 15, Klemme X and listen-only across resets and power cuts |
+| `STATE_EEPROM_ADDR` | 0 | First of the three EEPROM bytes used for it |
 | `ENABLE_LCD` | 1 | 16×2 LCD on the analog header |
 | `LCD_RS_PIN` … `LCD_D7_PIN` | A0–A5 | RS, E, D4, D5, D6, D7 |
 | `LCD_REFRESH_MS` | 250 | Display refresh period |
@@ -345,7 +352,7 @@ The same checksum self-test runs on the Arduino at boot.
 | `MCP2515 re-init` lines, `re-inits` climbing | The module is losing power or an SPI wire is loose. |
 | Init OK, `tx err` climbs, no responses | Wrong crystal setting. Or: no other node on the bus. A CAN transmitter needs at least one other node to ACK — with nothing else connected, every frame errors. This is normal and not a fault. |
 | Init OK, `tx ok` climbs, module ignores it | Wrong bus, or the module has no 12 V on Klemme 30. Verify with a meter before suspecting CAN. |
-| `tx ok` and `tx err` both stay at 0 | Listen-only is on; `s` shows the mode, `l` leaves it. |
+| `tx ok` and `tx err` both stay at 0 | Listen-only is on; `s` shows the mode, `l` leaves it. It is remembered across resets, so a reset does not leave it. |
 | Module boots then sleeps | Wants additional cyclic messages. Sniff a real car. |
 | Module reboots in a loop | Power supply sagging under load, not a CAN problem. |
 | Erratic comms, occasional frames | Termination. Measure CANH–CANL: should be ~60 Ω unpowered. |

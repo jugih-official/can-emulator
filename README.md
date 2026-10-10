@@ -34,6 +34,9 @@ emulator supplies that ignition on the gateway's convenience bus.
 | Control unit under test | The bus it sits on in the car | Reached from the OBD socket through the gateway |
 | 12 V supply | Gateway pins 1–2 (+), 11–12 (−), and every unit | Klemme 30 and 31 cannot be emulated |
 
+The emulator remembers the ignition state across resets and power cuts, so a
+bench that was on comes back on.
+
 Checked on this bench with ODIS: *Terminal 15 status via CAN* reads on and off
 as the button is pressed. Pins, power and what the gateway itself sends are in
 [HARDWARE.md](docs/HARDWARE.md#the-bench-with-a-gateway).

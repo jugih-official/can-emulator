@@ -78,9 +78,15 @@
 // withheld until that one has been silent for this long.
 #define MIB_YIELD_MS          5000
 
+// Remember Klemme 15, Klemme X and listen-only in EEPROM and come back up with
+// them after a reset or a power cut. With 0 every start is ignition off.
+#define REMEMBER_STATE        1
+#define STATE_EEPROM_ADDR     0
+
 // Come up in listen-only mode: receive and count frames but transmit nothing,
 // not even the acknowledge bit. The only mode to use on a complete car, where
-// the real gateway already sends 0x3C0. Toggled at runtime with 'l'.
+// the real gateway already sends 0x3C0. Toggled at runtime with 'l'. With
+// REMEMBER_STATE this is only the default for a board that has stored nothing.
 #define LISTEN_ONLY_DEFAULT   0
 
 // Sniffer mode: how many distinct CAN IDs to keep statistics for. Each entry

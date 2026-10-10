@@ -169,10 +169,11 @@ Not checked yet:
 
 ### Before flashing a control unit
 
-- **Keep the ignition on for the whole session.** The emulator starts with
-  Klemme 15 off after every reset, and opening its serial port from a PC
-  resets the Uno. During a flash, power the Uno from a USB charger or leave
-  the port alone.
+- **Keep the ignition on for the whole session.** The emulator remembers
+  Klemme 15 across a reset or a power cut (`REMEMBER_STATE`) and comes back
+  with it on, but a reset still stops `0x3C0` for about two seconds while the
+  Uno's bootloader runs. Opening the serial port from a PC is such a reset:
+  during a flash, power the Uno from a USB charger or leave the port alone.
 - **Hold the supply steady.** A voltage dip in the middle of a flash is the
   usual way to lose a control unit. Use a supply with headroom, not a wall
   wart.
