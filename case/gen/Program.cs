@@ -20,6 +20,8 @@
 // a run of fifty joins through a general boolean drifts by microns, and these
 // parts are all right angles.
 // ---------------------------------------------------------------------------
+using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Sihilisko.Cad.Core.Commands;
 using Sihilisko.Cad.Core.Editing;
 using Sihilisko.Cad.Core.Formats;
@@ -286,7 +288,37 @@ new AddLayerCommand(new CadLayer("Boards", "#3fa7ff")).Execute(drawing);
 new AddEntityCommand(baseSolid).Execute(drawing);
 new AddEntityCommand(lidSolid).Execute(drawing);
 foreach (var board in boards) new AddEntityCommand(board).Execute(drawing);
-File.WriteAllText(Path.Combine(outDir, "can-emulator-case.sihicad.json"), CadDocumentJson.Serialize(drawing, indented: false));
+WriteDrawing("can-emulator-case", drawing, [baseSolid, lidSolid, .. boards]);
+
+// A drawing as HelCAD saves it, except that it comes out the same every time:
+// HelCAD names each object by a random number and keeps them in no order, so
+// two runs of this program would differ in every line that matters to nobody.
+// The objects are put in the order given and numbered from one, each drawing
+// in a series of its own so that two of them can be brought into one. Then
+// the file is read back, as HelCAD would read it.
+var drawingsWritten = 0;
+void WriteDrawing(string name, CadDocument document, IReadOnlyList<CadEntity> order)
+{
+    var series = 0x8000 + ++drawingsWritten;
+    var root = JsonNode.Parse(CadDocumentJson.Serialize(document, indented: false))!.AsObject();
+    var place = order.Select((entity, index) => (Id: entity.Id.Value.ToString(), index)).ToDictionary(e => e.Id, e => e.index);
+    var entities = root["entities"]!.AsArray().Select(entity => entity!.DeepClone())
+        .OrderBy(entity => place[Guid.Parse(entity["id"]!.GetValue<string>()).ToString()]).ToArray();
+    root["entities"] = new JsonArray(entities);
+    var numbered = new Dictionary<string, string>();
+    var json = Regex.Replace(
+        root.ToJsonString(),
+        "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}",
+        match => numbered.TryGetValue(match.Value, out var known)
+            ? known
+            : numbered[match.Value] = $"00000000-0000-4000-{series:x4}-{numbered.Count + 1:x12}");
+    var read = CadDocumentJson.Deserialize(json);
+    if (read.Entities.Count != order.Count)
+    {
+        throw new InvalidOperationException($"{name}: written with {order.Count} objects, read back with {read.Entities.Count}.");
+    }
+    File.WriteAllText(Path.Combine(outDir, name + ".sihicad.json"), json + "\n");
+}
 
 // One part as it lies on the printer bed: an STL for the slicer, and a
 // drawing of its own for looking at it, or exporting it some other way.
@@ -297,7 +329,7 @@ void WriteStl(string name, MeshEntity solid, BoxSolid recipe)
     new AddEntityCommand(solid).Execute(one);
     var stl = BinaryStlWriter.Write(one);                   // refuses anything not watertight
     File.WriteAllBytes(Path.Combine(outDir, name + ".stl"), stl.Content);
-    File.WriteAllText(Path.Combine(outDir, name + ".sihicad.json"), CadDocumentJson.Serialize(one, indented: false));
+    WriteDrawing(name, one, [solid]);
     var report = PrintCheck.Check(solid, Units);
     var size = solid.Bounds;
     Console.WriteLine($"{name}: {recipe.Steps.Count} boxes, {stl.TriangleCount} triangles, " +
