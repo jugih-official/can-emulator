@@ -222,9 +222,30 @@ Klemme 15 as well (`ENABLE_STATUS_LED`).
 
 ## Typical workflows
 
+### Diagnosing or flashing a control unit through the gateway
+
+The bench as drawn in [HARDWARE.md](HARDWARE.md#the-bench-with-a-gateway):
+emulator on the gateway's convenience bus, tester on the OBD socket.
+
+1. Power the bench. The LCD shows `KL15 OFF` and `tx` counting with `err 0`:
+   the gateway is acknowledging.
+2. Press the button: `KL15 ON`.
+3. Connect the tester. In ODIS the gateway's measured value *Terminal 15 status
+   via CAN* should read on.
+4. Work on the control unit. For a flash, read
+   [Before flashing a control unit](HARDWARE.md#before-flashing-a-control-unit)
+   first: above all, nothing may reset the Uno while it runs.
+
+If the tester finds no gateway, put the emulator in listen-only on the
+diagnostic pair for a moment (`Listen-only`, then `Bus monitor`): a tester
+that is scanning shows up as `700` and `7xx` frames. Nothing at all means the
+pair itself is open or swapped.
+
 ### Waking a MIB head unit on the bench
 
-1. Wire the MCP2515 to the Infotainment-CAN, common ground everywhere.
+1. Wire the MCP2515 to the Infotainment-CAN, common ground everywhere. This is
+   the bench without a gateway; with one, the radio goes on gateway pins
+   10 / 20 and the emulator stays on the convenience bus.
 2. Feed 12 V to the module's Klemme 30 pin through a fuse.
 3. Power the Arduino. `Klemmen_Status_01` starts flowing at once.
 4. Press the button, or send `1`. The unit should boot.

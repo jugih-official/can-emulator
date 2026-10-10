@@ -209,8 +209,10 @@ Example — 2026-08-22 16:45:33, odometer 123456 km:
 The opendbc DBC carries no `GenMsgCycleTime` attributes, so:
 
 - `0x3C0` at **100 ms** is well established and corroborated by bench reports.
-- `0x5F0` at 500 ms and `0x6B2` at 1000 ms are **plausible defaults, not
-  measured values.**
+- `0x6B2` at **1000 ms** is measured: a J533 gateway on the bench sends it at
+  that rate (999–1001 ms).
+- `0x5F0` at 500 ms is a **plausible default, not a measured value.** The
+  gateway alone does not send it.
 
 Use the firmware's sniffer (`p`) against a real car to confirm, and adjust
 `DIMMUNG_CYCLE_MS` / `DIAGNOSE_CYCLE_MS` in `config.h`. Cycle accuracy matters:

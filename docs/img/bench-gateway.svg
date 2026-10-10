@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 840" width="1200" height="840" font-family="Helvetica, Arial, sans-serif">
+<title>The bench around a J533 gateway</title>
+<desc>The Klemme 15 emulator on the convenience bus of a J533 gateway, the OBD socket on its diagnostic bus, and the control units under test on the other buses, with the 12 V supply.</desc>
+<rect width="1200" height="840" fill="#ffffff"/>
+<text x="40" y="34" font-size="17" font-weight="bold" fill="#222">The bench around the gateway — every CAN pair and every 12 V wire</text>
+<text x="40" y="56" font-size="11" fill="#555">Gateway J533, 20-pin connector T20e. CAN low is on pins 5–10, CAN high on 15–20.</text>
+
+<rect x="450" y="90" width="300" height="440" rx="8" fill="#2f3a44" stroke="#1b232a" stroke-width="2"/>
+<text x="600" y="120" font-size="16" font-weight="bold" fill="#fff" text-anchor="middle">Gateway J533</text>
+<text x="600" y="138" font-size="10" fill="#c9d3dc" text-anchor="middle">connector T20e · routes between the buses</text>
+<rect x="446" y="196" width="8" height="8" fill="#d9b545"/><rect x="446" y="210" width="8" height="8" fill="#d9b545"/>
+<text x="462" y="204" font-size="10" fill="#fff">15  CAN high</text><text x="462" y="218" font-size="10" fill="#fff">5  CAN low</text>
+<text x="462" y="188" font-size="11" font-weight="bold" fill="#ffd97a">Convenience</text>
+<rect x="746" y="176" width="8" height="8" fill="#d9b545"/><rect x="746" y="190" width="8" height="8" fill="#d9b545"/>
+<text x="738" y="184" font-size="10" fill="#fff" text-anchor="end">CAN high  19</text><text x="738" y="198" font-size="10" fill="#fff" text-anchor="end">CAN low  9</text>
+<text x="738" y="168" font-size="11" font-weight="bold" fill="#ffd97a" text-anchor="end">Diagnostic</text>
+<rect x="746" y="286" width="8" height="8" fill="#d9b545"/><rect x="746" y="300" width="8" height="8" fill="#d9b545"/>
+<text x="738" y="294" font-size="10" fill="#fff" text-anchor="end">CAN high  20</text><text x="738" y="308" font-size="10" fill="#fff" text-anchor="end">CAN low  10</text>
+<text x="738" y="278" font-size="11" font-weight="bold" fill="#ffd97a" text-anchor="end">Infotainment</text>
+<rect x="746" y="396" width="8" height="8" fill="#d9b545"/><rect x="746" y="410" width="8" height="8" fill="#d9b545"/>
+<text x="738" y="404" font-size="10" fill="#fff" text-anchor="end">CAN high  16</text><text x="738" y="418" font-size="10" fill="#fff" text-anchor="end">CAN low  6</text>
+<text x="738" y="388" font-size="11" font-weight="bold" fill="#ffd97a" text-anchor="end">Powertrain</text>
+<text x="738" y="436" font-size="9" fill="#c9d3dc" text-anchor="end">or Extended 7 / 17,</text>
+<text x="738" y="448" font-size="9" fill="#c9d3dc" text-anchor="end">Running gear 8 / 18</text>
+<text x="462" y="290" font-size="10" fill="#c9d3dc">Reads Kl. 15 from 0x3C0</text>
+<text x="462" y="304" font-size="10" fill="#c9d3dc">on this bus. Sends the</text>
+<text x="462" y="318" font-size="10" fill="#c9d3dc">clock, 0x6B2, itself.</text>
+<rect x="40" y="160" width="290" height="110" rx="6" fill="#d7eef2" stroke="#0c6775" stroke-width="1.5"/>
+<text x="185.0" y="182" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">Klemme 15 emulator</text>
+<text x="185.0" y="200" font-size="10" fill="#444" text-anchor="middle">Uno + MCP2515 + LCD</text>
+<text x="185.0" y="214" font-size="10" fill="#444" text-anchor="middle">sends 0x3C0 every 100 ms</text>
+<text x="185.0" y="228" font-size="10" fill="#444" text-anchor="middle">J1 on: one 120 Ω</text>
+<path d="M330,200 H446" stroke="#e6b422" stroke-width="3" fill="none"/>
+<path d="M330,214 H446" stroke="#2e9e4f" stroke-width="3" fill="none"/>
+<text x="388" y="190" font-size="9" fill="#555" text-anchor="middle">twisted pair</text>
+<text x="185" y="292" font-size="10" fill="#444" text-anchor="middle">Other convenience-bus units join this pair too</text>
+<rect x="880" y="140" width="250" height="90" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
+<text x="1005.0" y="162" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">OBD socket</text>
+<text x="1005.0" y="180" font-size="10" fill="#444" text-anchor="middle">6 → 19 CAN high · 14 → 9 CAN low</text>
+<text x="1005.0" y="194" font-size="10" fill="#444" text-anchor="middle">16 = +12 V · 4 and 5 = ground</text>
+<text x="1005.0" y="208" font-size="10" fill="#444" text-anchor="middle">ODIS, VCDS or a flasher plugs in here</text>
+<path d="M754,180 H880" stroke="#e6b422" stroke-width="3" fill="none"/>
+<path d="M754,194 H880" stroke="#2e9e4f" stroke-width="3" fill="none"/>
+<rect x="880" y="260" width="250" height="80" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
+<text x="1005.0" y="282" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">Radio / head unit</text>
+<text x="1005.0" y="300" font-size="10" fill="#444" text-anchor="middle">or any infotainment-bus unit</text>
+<text x="1005.0" y="314" font-size="10" fill="#444" text-anchor="middle">on gateway pins 10 and 20</text>
+<path d="M754,290 H880" stroke="#e6b422" stroke-width="3" fill="none"/>
+<path d="M754,304 H880" stroke="#2e9e4f" stroke-width="3" fill="none"/>
+<rect x="880" y="370" width="250" height="80" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
+<text x="1005.0" y="392" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">Control unit to flash</text>
+<text x="1005.0" y="410" font-size="10" fill="#444" text-anchor="middle">on the bus it lives on in the car</text>
+<text x="1005.0" y="424" font-size="10" fill="#444" text-anchor="middle">reached from the OBD socket</text>
+<path d="M754,400 H880" stroke="#e6b422" stroke-width="3" fill="none"/>
+<path d="M754,414 H880" stroke="#2e9e4f" stroke-width="3" fill="none"/>
+<rect x="516" y="526" width="8" height="8" fill="#d9b545"/>
+<text x="520" y="506" font-size="10" fill="#fff" text-anchor="middle">1, 2</text><text x="520" y="519" font-size="10" font-weight="bold" fill="#ffd97a" text-anchor="middle">Kl. 30</text>
+<rect x="596" y="526" width="8" height="8" fill="#d9b545"/>
+<text x="600" y="506" font-size="10" fill="#fff" text-anchor="middle">11, 12</text><text x="600" y="519" font-size="10" font-weight="bold" fill="#ffd97a" text-anchor="middle">Kl. 31</text>
+<rect x="676" y="526" width="8" height="8" fill="#d9b545"/>
+<text x="680" y="506" font-size="10" fill="#fff" text-anchor="middle">14</text><text x="680" y="519" font-size="10" font-weight="bold" fill="#ffd97a" text-anchor="middle">Kl. 15</text>
+<path d="M230,640 H250 M290,640 H1160" stroke="#d62828" stroke-width="3.5" fill="none"/>
+<rect x="250" y="633" width="40" height="14" fill="#fff" stroke="#d62828" stroke-width="2"/>
+<text x="270" y="627" font-size="10" fill="#333" text-anchor="middle">fuse</text>
+<path d="M230,680 H1180" stroke="#222" stroke-width="3.5" fill="none"/>
+<text x="330" y="632" font-size="10" fill="#d62828" font-weight="bold">+12 V (Kl. 30)</text>
+<text x="330" y="696" font-size="10" fill="#222" font-weight="bold">ground (Kl. 31)</text>
+<rect x="40" y="610" width="190" height="100" rx="6" fill="#eef1f4" stroke="#8a9298" stroke-width="1.5"/>
+<text x="135" y="650" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">Bench PSU</text>
+<text x="135" y="668" font-size="10" fill="#555" text-anchor="middle">12–14 V, 10 A or more</text>
+<text x="135" y="682" font-size="10" fill="#555" text-anchor="middle">steady: it must not sag</text>
+<text x="135" y="696" font-size="10" fill="#555" text-anchor="middle">while a unit is flashed</text>
+<path d="M520,534 V640" stroke="#d62828" stroke-width="3" fill="none"/><circle cx="520" cy="640" r="4" fill="#d62828"/>
+<path d="M600,534 V680" stroke="#222" stroke-width="3" fill="none"/><circle cx="600" cy="680" r="4" fill="#222"/>
+<path d="M680,534 V640" stroke="#d62828" stroke-width="3" fill="none" stroke-dasharray="6,4"/><circle cx="680" cy="640" r="4" fill="#d62828"/>
+<text x="690" y="580" font-size="10" fill="#555">optional: the gateway</text><text x="690" y="593" font-size="10" fill="#555">takes Kl. 15 from CAN</text>
+<path d="M310,270 V680" stroke="#222" stroke-width="3" fill="none"/><circle cx="310" cy="680" r="4" fill="#222"/>
+<text x="292" y="330" font-size="10" fill="#333" text-anchor="end">Arduino GND to</text><text x="292" y="343" font-size="10" fill="#333" text-anchor="end">bench ground:</text><text x="292" y="356" font-size="10" fill="#333" text-anchor="end">not optional</text>
+<path d="M1160,640 V180" stroke="#d62828" stroke-width="3" fill="none"/>
+<path d="M1180,680 V200" stroke="#222" stroke-width="3" fill="none"/>
+<path d="M1130,180 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="180" r="3.5" fill="#d62828"/>
+<path d="M1130,200 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="200" r="3.5" fill="#222"/>
+<path d="M1130,300 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="300" r="3.5" fill="#d62828"/>
+<path d="M1130,320 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="320" r="3.5" fill="#222"/>
+<path d="M1130,410 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="410" r="3.5" fill="#d62828"/>
+<path d="M1130,430 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="430" r="3.5" fill="#222"/>
+<rect x="40" y="730" width="1140" height="92" rx="6" fill="#f7f8fa" stroke="#d5dbe3"/>
+<text x="58" y="756" font-size="11" fill="#333"><tspan font-weight="bold">Ignition:</tspan> no wire. The emulator sends Klemmen_Status_01 on the convenience bus and the gateway reports it: ODIS reads “Terminal 15 status via CAN” on and off with the button.</text>
+<text x="58" y="780" font-size="11" fill="#333"><tspan font-weight="bold">Diagnosis and flashing:</tspan> the tester talks on the diagnostic pair only; the gateway carries its requests to the bus the control unit sits on. Without the gateway the OBD socket reaches nothing.</text>
+<text x="58" y="804" font-size="11" fill="#333"><tspan font-weight="bold">Termination:</tspan> about 60 Ω across each pair with the power off. Measure every pair you use; do not assume the gateway terminates it.</text>
+</svg>

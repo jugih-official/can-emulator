@@ -11,6 +11,8 @@
 | 1 | 16×2 character LCD, 1602A type | The plain 16-pin parallel module, no I²C backpack. Optional. |
 | 1 | 10 kΩ trimmer | LCD contrast. A fixed 1–2 kΩ from V0 to GND does on most modules. |
 | 1 | 220 Ω resistor | LCD backlight. |
+| 1 | Gateway J533 with its T20e connector or pigtail | The permanent centre of the bench: see [The bench with a gateway](#the-bench-with-a-gateway). |
+| 1 | OBD-II socket (16-pin, female) | For the diagnostic tester. |
 | 1 | Bench PSU, 12 V, ≥10 A | For Klemme 30 to the module under test. A MIB unit can pull 5 A+. |
 | — | Jumper wires, 0.5 mm² wire for the 12 V side | |
 | 1 | Inline fuse, 10–15 A | On the 12 V feed. Not optional. |
@@ -104,13 +106,102 @@ anode to D6, cathode → 330 Ω → GND). Not D13: on the Uno the built-in LED
 shares D13 with the SPI clock, so it flickers with bus traffic and can't be
 driven independently.
 
+## The bench with a gateway
+
+A gateway **J533** is a permanent part of this bench. Three things depend on
+it:
+
+- **Diagnosis and flashing.** A tester on the OBD socket talks on the
+  diagnostic CAN only. The gateway carries its requests to the bus the
+  addressed control unit sits on and brings the answers back. Without it the
+  socket reaches nothing.
+- **Ignition.** The gateway is the unit that has to see terminal 15. It takes
+  it from `Klemmen_Status_01` on the convenience bus, which is where the
+  emulator goes.
+- **A living network.** It sends the cyclic traffic and network management
+  that control units expect, including the clock message `0x6B2`, so the
+  emulator stands back with its own copy.
+
+![The bench around a J533 gateway](img/bench-gateway.svg)
+
+### What goes where
+
+| Part | Gateway pins (T20e) | Notes |
+|---|---|---|
+| +12 V, terminal 30 | 1, 2 | Through the fuse |
+| Ground, terminal 31 | 11, 12 | Common with the Arduino's GND |
+| Terminal 15, hard-wired | 14 | Optional, see below |
+| Emulator, CAN H / CAN L | 15 / 5 (convenience) | J1 on the MCP2515 module fitted |
+| OBD socket pin 6 / pin 14 | 19 / 9 (diagnostic) | Socket pin 16 to +12 V, pins 4 and 5 to ground |
+| Radio or head unit | 20 / 10 (infotainment) | |
+| Other control units | 16 / 6 powertrain, 17 / 7 extended, 18 / 8 running gear | On the bus they use in the car |
+
+Each unit under test also needs its own terminal 30 and 31 from the supply.
+
+**OBD socket.** Pin 6 is CAN high and pin 14 CAN low, pin 16 permanent +12 V,
+pins 4 and 5 ground. On VW cars pin 1 carries switched terminal 15, and some
+interfaces read the ignition from it: if a tester insists the ignition is off
+while ODIS shows it on, put +12 V on pin 1 as well.
+
+**Terminal 15 on pin 14.** ODIS shows two values in the gateway: *Terminal 15
+status via CAN* (`$02B2`) follows the emulator, on and off. *Terminal 15
+status* (`$0288`) read "on" throughout on this bench; that is presumably the
+hard-wired input, which has not been checked with pin 14 open.
+
+### What has been checked, and what has not
+
+Checked on this bench:
+
+- The gateway acknowledges every emulator frame on the convenience bus, with
+  no transmit errors.
+- ODIS, on the OBD socket, reads *Terminal 15 status via CAN* on and off as the
+  emulator's button is pressed.
+- The tester's "tester present" (`0x700`, every 2 s) appears on the convenience
+  bus, so the gateway routes diagnostic requests across.
+- The gateway sends `0x6B2` every 1000 ms.
+
+Not checked yet:
+
+- Whether the gateway repeats terminal status onto the infotainment bus, so
+  that a radio there wakes with the emulator on the convenience bus. The bus
+  monitor on pins 10 / 20 answers it: look for `3C0`.
+- Flashing a control unit end to end.
+
+### Before flashing a control unit
+
+- **Keep the ignition on for the whole session.** The emulator starts with
+  Klemme 15 off after every reset, and opening its serial port from a PC
+  resets the Uno. During a flash, power the Uno from a USB charger or leave
+  the port alone.
+- **Hold the supply steady.** A voltage dip in the middle of a flash is the
+  usual way to lose a control unit. Use a supply with headroom, not a wall
+  wart.
+- **Leave the emulator in normal mode.** In listen-only it sends no ignition.
+- **Keep the serial dump (`r`) off.** It slows the sketch down for nothing.
+
+### What the gateway sends
+
+Measured with the emulator's sniffer on the convenience bus, gateway alone:
+
+| ID | Cycle |
+|---|---|
+| `3DC` | 50 ms |
+| `5AC`, `663`, `48B`, `3DA`, `3EB` | 100 ms |
+| `569` | 500 ms |
+| `585`, `6B2`, `386`, `5F5`, `5F7` | 1000 ms |
+| `1B000010` (29-bit, network management) | 200 ms |
+| `17332310` (29-bit) | about 1000 ms |
+
+On the diagnostic pair it sends only its network-management frame until a
+tester speaks. That bus is the tester's: the emulator has no business
+transmitting there, and with nothing else on the pair to acknowledge, the
+gateway repeats one frame without pause.
+
 ## Connecting to the vehicle bus
 
-### On a bench harness (the intended use)
+### Gateway pins
 
-Tap CAN-High and CAN-Low of the bus the module sits on — normally at the
-module's own connector. If the harness runs to the gateway **J533** instead,
-its 20-pin connector **T20e** carries every bus. From the VW workshop
+The gateway's 20-pin connector **T20e** carries every bus. From the VW workshop
 illustration reproduced in the
 [openpilot wiki](https://github.com/commaai/openpilot/wiki/VW-J533-(Gateway)-Cable):
 
@@ -165,7 +256,8 @@ is missing; 40 Ω means you have three.
 ## Powering the module under test
 
 Klemme 30 is permanent battery voltage and **cannot be emulated over CAN** —
-you have to supply it physically.
+you have to supply it physically. The same goes for the gateway, on pins 1–2
+and 11–12.
 
 ```
  Bench PSU 12 V ──[ 10-15 A fuse ]──► module Kl. 30 pin
@@ -177,7 +269,9 @@ Use a supply that can hold 12–14 V under load. A MIB head unit drawing 5 A fro
 a 2 A wall wart will brown out and reboot in a loop, which looks exactly like a
 CAN problem and isn't.
 
-![The bench: PC, Uno, MCP2515, module under test and the 12 V supply](img/bench-overview.svg)
+Without a gateway, one module straight on the emulator:
+
+![The bench without a gateway: PC, Uno, MCP2515, module under test and the 12 V supply](img/bench-overview.svg)
 
 ## Safety and legal notes
 

@@ -17,6 +17,30 @@ The build on the bench, sending ignition on to a J533 gateway: Uno clone at the
 top, the MCP2515 module with the CAN pair on its screw terminal at the right,
 the LCD and its contrast potentiometer at the bottom.
 
+## The bench it belongs to
+
+The emulator is one part of a bench built around a real **J533 gateway**. The
+gateway stays on the bench permanently: it is what makes the OBD socket work,
+so a diagnostic tester can reach, code and flash the control units hung on its
+buses, and it is the one unit that has to believe the ignition is on. The
+emulator supplies that ignition on the gateway's convenience bus.
+
+![The bench around a J533 gateway](docs/img/bench-gateway.svg)
+
+| Part | Connects to | Why it is there |
+|---|---|---|
+| Klemme 15 emulator | Convenience bus, gateway pins 15 (high) / 5 (low) | Ignition on and off over CAN |
+| OBD socket | Diagnostic bus, pins 19 (high) / 9 (low) | Where ODIS, VCDS or a flasher plugs in |
+| Control unit under test | The bus it sits on in the car | Reached from the OBD socket through the gateway |
+| 12 V supply | Gateway pins 1–2 (+), 11–12 (−), and every unit | Klemme 30 and 31 cannot be emulated |
+
+Checked on this bench with ODIS: *Terminal 15 status via CAN* reads on and off
+as the button is pressed. Pins, power and what the gateway itself sends are in
+[HARDWARE.md](docs/HARDWARE.md#the-bench-with-a-gateway).
+
+A single module can also be driven without a gateway, the emulator straight on
+the module's CAN pair:
+
 ```
    ┌─────────┐  SPI   ┌──────────┐  CAN   ┌──────────────────┐
    │ Arduino ├───────►│ MCP2515  ├───────►│ module under test│
@@ -79,9 +103,14 @@ check on the module before the first upload: the **crystal** (`8.000` →
 `MCP_8MHZ`, the default; `16.000` → `MCP_16MHZ`) and the **J1 jumper**, which
 puts the module's own 120 Ω terminator on the bus.
 
-![The bench: PC, Uno, MCP2515, module under test and the 12 V supply](docs/img/bench-overview.svg)
+The CAN pair from the module's screw terminal goes to the gateway's
+convenience bus, as in the drawing under
+[The bench it belongs to](#the-bench-it-belongs-to). Without a gateway it goes
+straight to the module under test:
 
-On the 12 V side:
+![The bench without a gateway: PC, Uno, MCP2515, module under test and the 12 V supply](docs/img/bench-overview.svg)
+
+On the 12 V side, for that direct case:
 
 1. **Kl. 30**: PSU + → 10–15 A fuse → the module's permanent-supply pin.
 2. **Kl. 31**: PSU − → the module's ground pin **and** the Arduino's GND. CAN
