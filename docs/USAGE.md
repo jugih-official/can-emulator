@@ -7,7 +7,8 @@
 1. **Install the CAN library.** *Tools → Manage Libraries…*, search `mcp_can`,
    install **"MCP_CAN Library" by Cory J. Fowler**. There are several similarly
    named libraries — the API used here (`CAN.begin(MCP_ANY, ...)`,
-   `CAN.setMode(MCP_NORMAL)`) is his.
+   `CAN.setMode(MCP_NORMAL)`) is his. The display uses **LiquidCrystal** by
+   Arduino, which the IDE already has.
 2. Open `can-emulator.ino`. The containing folder must stay named
    `can-emulator` so it matches the sketch filename.
 3. *Tools → Board → Arduino Uno*, pick the port, and upload.
@@ -29,6 +30,7 @@ Most distributions already put `~/.local/bin` on the PATH from `~/.profile`; if
 arduino-cli core update-index
 arduino-cli core install arduino:avr
 arduino-cli lib install "mcp_can"          # by coryjfowler -- check the author
+arduino-cli lib install LiquidCrystal      # by Arduino, for the display
 ```
 
 Then build, flash and monitor:
@@ -39,6 +41,8 @@ arduino-cli upload  --fqbn arduino:avr:uno -p /dev/ttyACM0 .
 arduino-cli monitor -p /dev/ttyACM0 -c baudrate=115200
 ```
 
+A genuine Uno is `/dev/ttyACM0`; a CH340-based clone — most of the cheap ones,
+USB-C or not — shows up as `/dev/ttyUSB0`, so use that in the commands above.
 `arduino-cli board list` shows connected boards and their ports. If uploads fail
 with a permission error, add yourself to the serial group once, then log out and
 back in:
@@ -57,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 8118 bytes (25%) of program storage space. Maximum is 32256 bytes.
-Global variables use 562 bytes (27%) of dynamic memory, leaving 1486 bytes...
+Sketch uses 10580 bytes (32%) of program storage space. Maximum is 32256 bytes.
+Global variables use 658 bytes (32%) of dynamic memory, leaving 1390 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -74,7 +78,7 @@ checksum self-test: PASS
 MCP2515 init: ok
 1/0 ign on/off   t toggle ign   x toggle Kl X   5 pulse Kl 50
 s status   d toggle tx trace   r toggle rx dump   p rx stats
-c clear rx stats   +/- dimming   h help
+c clear rx stats   +/- dimming   l listen-only   h help
 ```
 
 Both `PASS` and `ok` are required.
@@ -85,7 +89,8 @@ Both `PASS` and `ok` are required.
 
 `Klemmen_Status_01` transmits immediately at 10 Hz whether ignition is on or
 off. That is deliberate: a real gateway does the same, and it is what keeps the
-bus awake.
+bus awake. The one way to silence it is listen-only mode (`l`), which is for
+sniffing a real car.
 
 ## Serial commands
 
@@ -97,23 +102,68 @@ bus awake.
 | `x` | Toggle Klemme X (load shedding) |
 | `5` | Pulse Klemme 50 (starter request) for `KL50_PULSE_MS` |
 | `+` / `-` | Display brightness up / down, in steps of 10 |
-| `s` | Status: terminal states, clock, TX counters |
+| `s` | Status: terminal states, clock, TX and RX counters, the controller's error flags |
 | `d` | Toggle per-frame transmit trace |
-| `r` | Toggle received-frame dump |
+| `r` | Toggle received-frame dump. 29-bit IDs are printed with an `x` in front. |
 | `p` | Print per-ID receive statistics |
 | `c` | Clear receive statistics |
+| `l` | Toggle listen-only: nothing is transmitted, not even acknowledge bits. The mode for a real car. |
 | `h` | Help |
+
+### Reading the status
+
+```
+  5F0 / 6B2: ours / bus sends it, ours off
+  tx ok    : 317
+  tx err   : 0
+  rx frames: 506
+  rx 29-bit: 40
+  chip     : eflg 0x40  tec 0  rec 0
+  re-inits : 0
+```
+
+- `5F0 / 6B2` — whether the emulator sends each of the two MIB messages. When
+  another node is heard sending one, a gateway for instance, the emulator's own
+  is withheld until that node has been silent for `MIB_YIELD_MS`: two senders of
+  one ID with different payloads would collide.
+- `rx 29-bit` — frames with an extended ID, which on MQB is network management
+  (`0x1B0000xx`) and some `0x17xxxxxx` messages. They are counted here and
+  shown by `r`, but the `p` table holds 11-bit IDs only.
+- `chip` — read from the MCP2515. `tec` / `rec` are the CAN transmit and receive
+  error counters; `tec` climbing means frames are not being acknowledged.
+  `eflg` bits `0x40` / `0x80` mean a received frame was lost because the sketch
+  was busy, typically printing a dump; bit `0x20` is bus-off.
+- `re-inits` — how often the once-a-second health check found the controller
+  in the wrong mode and set it up again. It should stay 0; counting up points
+  at the module's 5 V or ground.
 
 Klemme 50 is refused while ignition is off — you cannot crank without T15, and
 neither can the real car.
 
 ## The button
 
-The push button on **D4** toggles Klemme 15, exactly like `t`. The LED on **D6**
-follows the state. Debounce is 40 ms (`BUTTON_DEBOUNCE_MS`).
+The push button on **D4** toggles Klemme 15, exactly like `t`. Debounce is
+40 ms (`BUTTON_DEBOUNCE_MS`).
 
 The Uno has no usable built-in button — RESET is the only one on the board — so
 this needs a switch wired between D4 and GND. See [HARDWARE.md](HARDWARE.md).
+
+## The display
+
+A 16×2 LCD on **A0–A5** (`ENABLE_LCD`, on by default) shows the state without a
+laptop:
+
+```
+KL15 ON   X  50     Klemme 15 on or off; X and 50 appear while those are set
+tx 123456 err  0    frames sent, and frames the controller could not send
+```
+
+In listen-only mode the first line reads `LISTEN-ONLY` and the second
+`rx 123456 ids 12`: frames and distinct IDs seen. `CHECKSUM FAIL` or
+`MCP2515 FAILED` takes the first line when boot found that problem. The glass
+is refreshed every 250 ms (`LCD_REFRESH_MS`) and only the characters that
+changed are written, so the CAN cycle does not notice it. An LED on D6 can show
+Klemme 15 as well (`ENABLE_STATUS_LED`).
 
 ## Typical workflows
 
@@ -133,9 +183,12 @@ project doesn't send yet. Sniff a real car to find out which — see below.
 Receive statistics are collected continuously, so you don't have to be dumping
 frames to gather them.
 
-1. Connect to a **real, working** car's bus, transmitting nothing.
-2. Let it run for 30 seconds with the ignition on.
-3. Press `p`:
+1. Send `l` so the board transmits nothing, not even acknowledge bits; `s`
+   shows `mode : listen-only`. Or build with `LISTEN_ONLY_DEFAULT 1` so it
+   comes up that way.
+2. Connect to a **real, working** car's bus.
+3. Let it run for 30 seconds with the ignition on.
+4. Press `p`:
 
 ```
   ID  count   min   max  (ms between frames)
@@ -171,13 +224,21 @@ All tunables live in [`config.h`](../config.h).
 | `MCP_BITRATE` | `CAN_500KBPS` | MQB Komfort/Infotainment rate |
 | `MCP_CS_PIN` | 10 | SPI chip select |
 | `BUTTON_PIN` | 4 | Ignition button |
-| `STATUS_LED_PIN` | 6 | Klemme 15 indicator |
+| `STATUS_LED_PIN` | 6 | Klemme 15 LED, with `ENABLE_STATUS_LED 1` |
 | `KLEMMEN_CYCLE_MS` | 100 | Do not change; receivers fault on drift |
 | `DIMMUNG_CYCLE_MS` | 500 | Assumed, verify by sniffing |
 | `DIAGNOSE_CYCLE_MS` | 1000 | Assumed, verify by sniffing |
 | `KL50_PULSE_MS` | 800 | Starter request pulse length |
 | `ENABLE_MIB_MESSAGES` | 1 | Send `0x5F0` and `0x6B2` |
+| `MIB_YIELD_MS` | 5000 | Withhold either of them this long after another node sent it |
+| `HEALTH_CHECK_MS` | 1000 | How often the controller's mode is checked |
+| `BUS_RETRY_MS` | 3000 | How often a controller that does not answer is tried again |
 | `ENABLE_SERIAL_CONTROL` | 1 | Serial console; disable to save flash |
+| `LISTEN_ONLY_DEFAULT` | 0 | Come up transmitting nothing; for a real car |
+| `ENABLE_LCD` | 1 | 16×2 LCD on the analog header |
+| `LCD_RS_PIN` … `LCD_D7_PIN` | A0–A5 | RS, E, D4, D5, D6, D7 |
+| `LCD_REFRESH_MS` | 250 | Display refresh period |
+| `ENABLE_STATUS_LED` | 0 | LED on `STATUS_LED_PIN` showing Klemme 15 |
 | `SNIFFER_MAX_IDS` | 24 | RAM cost is 12 bytes each |
 
 To set the MIB's starting clock, edit the defaults in `ClockState`
@@ -201,12 +262,16 @@ The same checksum self-test runs on the Arduino at boot.
 
 | Symptom | Cause |
 |---|---|
-| `MCP2515 init: FAILED` | SPI wiring, wrong `MCP_CS_PIN`, or module unpowered. Check 5 V at the module's VCC. |
+| `MCP2515 init: FAILED` | SPI wiring, wrong `MCP_CS_PIN`, or module unpowered. Check 5 V at the module's VCC. It is tried again every 3 s, so fixing the wire is enough. |
+| `MCP2515 re-init` lines, `re-inits` climbing | The module is losing power or an SPI wire is loose. |
 | Init OK, `tx err` climbs, no responses | Wrong crystal setting. Or: no other node on the bus. A CAN transmitter needs at least one other node to ACK — with nothing else connected, every frame errors. This is normal and not a fault. |
 | Init OK, `tx ok` climbs, module ignores it | Wrong bus, or the module has no 12 V on Klemme 30. Verify with a meter before suspecting CAN. |
+| `tx ok` and `tx err` both stay at 0 | Listen-only is on; `s` shows the mode, `l` leaves it. |
 | Module boots then sleeps | Wants additional cyclic messages. Sniff a real car. |
 | Module reboots in a loop | Power supply sagging under load, not a CAN problem. |
 | Erratic comms, occasional frames | Termination. Measure CANH–CANL: should be ~60 Ω unpowered. |
 | Garbage on serial | Monitor not at 115200. |
+| LCD blank, or one row of boxes | Contrast: adjust V0 (trimmer, or 1–2 kΩ to GND). Boxes on one row only means it never initialised: check RS, E, D4–D7 and that RW is on GND. |
+| LCD shows garbage | D4–D7 in the wrong order, or a loose E wire. |
 | Clock wrong on MIB | Expected — starts from the `ClockState` defaults each boot. |
 | Sniffer shows nothing | CANH/CANL swapped, or wrong bus, or bitrate mismatch. |

@@ -132,6 +132,12 @@ ignition **off**, for Klemme X and for cranking — none of which the table can
 produce. `mqbChecksumSelfTest()` pins the implementation to all 16 reference
 values and runs both in `test/run.sh` and on the Arduino at boot.
 
+The same answer exists independently: commaai/opendbc's VW checksum
+(`opendbc/car/volkswagen/mqbcan.py`, `VOLKSWAGEN_MQB_MEB_CONSTANTS`) lists
+`0x3C0: [0xC3] * 16`, and its test suite
+(`opendbc/can/tests/test_checksums.py`,
+`test_volkswagen_mqb_crc_klemmen_status_01`) checks the very same 16 frames.
+
 ### Example frames
 
 | State | byte 2 | Counter 0 | 1 | 2 | 3 |
@@ -229,5 +235,11 @@ host-testable.
 
 - [Ross-Tech forum thread 5918](https://forums.ross-tech.com/index.php?threads/5918/page-10)
   — frame layout and the reference checksums.
-- [`vw_mqb_2010.dbc`](https://github.com/RoosterIllusion/opendbc-7.x/blob/master/vw_mqb_2010.dbc)
-  — signal definitions, from commaai/opendbc.
+- [`vw_mqb.dbc`](https://github.com/commaai/opendbc/blob/master/opendbc/dbc/vw_mqb.dbc)
+  — signal definitions, from commaai/opendbc (formerly `vw_mqb_2010.dbc`; an
+  [archived copy](https://github.com/RoosterIllusion/opendbc-7.x/blob/master/vw_mqb_2010.dbc)
+  of the old file exists).
+- [`mqbcan.py`](https://github.com/commaai/opendbc/blob/master/opendbc/car/volkswagen/mqbcan.py)
+  and [`test_checksums.py`](https://github.com/commaai/opendbc/blob/master/opendbc/can/tests/test_checksums.py)
+  in commaai/opendbc — the same CRC with magic byte `0xC3` for `0x3C0`, and the
+  same 16 reference frames.

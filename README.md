@@ -4,9 +4,10 @@ Arduino Uno + MCP2515 firmware that broadcasts the VW MQB `Klemmen_Status_01`
 CAN frame, so modules on a bench harness believe the ignition is on without a
 body control module, steering column module (J527) or immobiliser present.
 
-Ignition is toggled with a push button on the Arduino or over a serial console.
-A built-in sniffer lets you capture what a real car sends and check your
-assumptions against it.
+Ignition is toggled with a push button on the Arduino or over a serial console,
+and a 16×2 LCD shows the state and the counters. A built-in sniffer, with a
+listen-only mode that transmits nothing, lets you capture what a real car sends
+and check your assumptions against it.
 
 ```
    ┌─────────┐  SPI   ┌──────────┐  CAN   ┌──────────────────┐
@@ -21,7 +22,7 @@ assumptions against it.
 
 | Document | Contents |
 |---|---|
-| [docs/HARDWARE.md](docs/HARDWARE.md) | Bill of materials, wiring, termination, grounding, powering the module, safety |
+| [docs/HARDWARE.md](docs/HARDWARE.md) | Bill of materials, wiring drawings, termination, grounding, J533 pins, powering the module, safety |
 | [docs/USAGE.md](docs/USAGE.md) | Toolchain setup, serial commands, workflows, configuration, troubleshooting |
 | [docs/PROTOCOL.md](docs/PROTOCOL.md) | Frame layouts, checksum algorithm and how it was derived, adding messages |
 
@@ -37,13 +38,63 @@ These are not the same kind of thing, and only one of them is a CAN signal:
 So: **supply Kl. 30 from a bench PSU, emulate Kl. 15 with this sketch.** Most
 MQB modules will not power up on the CAN message alone.
 
+## Wiring
+
+Two boards, a push button and a 16×2 LCD. The drawings show the real boards:
+an Arduino Uno R3, to scale with the USB to the left; the common MCP2515 +
+TJA1050 module — the blue "NiRen" one or the black one, which share the 7-pin
+header `INT SCK SI SO CS GND VCC` and the 2-pin `CAN H` / `CAN L` screw
+terminal; and the plain 16-pin 1602A display hanging from the analog header.
+
+![Arduino Uno R3 to MCP2515 module, every wire](docs/img/wiring-uno-mcp2515.svg)
+
+| Wire | Uno pin | Module pin | What it is |
+|---|---|---|---|
+| yellow | D13 (SCK) | SCK | SPI clock. D13 is also the Uno's `L` LED, so it flickers with traffic: normal. |
+| green | D12 (MISO) | SO | SPI data, module → Uno |
+| blue | D11 (MOSI) | SI | SPI data, Uno → module |
+| violet | D10 | CS | chip select, `MCP_CS_PIN` |
+| grey | D2 | INT | interrupt, wired for later. The sketch polls, so it works without it. |
+| red | 5V | VCC | the module runs on 5 V |
+| black | GND | GND | |
+| brown | D4 | — | push button to GND. No resistor: the sketch enables the internal pull-up. |
+| orange | A0–A5 | — | 16×2 LCD: A0 → RS, A1 → E, A2–A5 → D4–D7. On the LCD, VSS, RW and K → GND; VDD → 5V; A → 5V via 220 Ω; V0 → contrast trimmer; D0–D3 open. |
+
+D11, D12 and D13 are the Uno's hardware SPI pins and cannot be moved; D10, D2
+and the LCD pins are `MCP_CS_PIN`, `MCP_INT_PIN` and `LCD_*_PIN` in
+[`config.h`](config.h). The LCD is optional (`ENABLE_LCD 0` without one). It
+shows `KL15 ON` or `KL15 OFF` with the X and 50 flags on its first line and
+`tx 123456 err  0` on its second — in listen-only mode, what it hears instead.
+The LCD's and the module's 5 V and GND all come from the Uno's one 5V pin and
+its GND pins: share them with a breadboard rail or a splitter. Two things to
+check on the module before the first upload: the **crystal** (`8.000` →
+`MCP_8MHZ`, the default; `16.000` → `MCP_16MHZ`) and the **J1 jumper**, which
+puts the module's own 120 Ω terminator on the bus.
+
+![The bench: PC, Uno, MCP2515, module under test and the 12 V supply](docs/img/bench-overview.svg)
+
+On the 12 V side:
+
+1. **Kl. 30**: PSU + → 10–15 A fuse → the module's permanent-supply pin.
+2. **Kl. 31**: PSU − → the module's ground pin **and** the Arduino's GND. CAN
+   is differential but still ground-referenced; a floating Arduino gives
+   intermittent, baffling errors.
+3. **CAN H / CAN L**: from the module's screw terminal to the CAN pins of the
+   bus the module under test sits on, as a twisted pair. Which bus, and the
+   J533 gateway pins if your harness ends there: see
+   [HARDWARE.md](docs/HARDWARE.md#connecting-to-the-vehicle-bus).
+4. **Termination**: a bus needs two 120 Ω, one at each end. J1 on the MCP2515
+   module is one; add the other at the far end only if nothing there
+   terminates. About 60 Ω across CAN H–L with the power off is right.
+5. **Kl. 15** has no wire. Press the button and it arrives as `0x3C0`.
+
 ## Messages sent
 
 | ID | Name | DLC | Cycle | Purpose |
 |---|---|---|---|---|
 | `0x3C0` | `Klemmen_Status_01` | 4 | 100 ms | Terminal status (S, 15, X, 50). Always sent. |
-| `0x5F0` | `Dimmung_01` | 8 | 500 ms | Display/panel dimming. Sent while Kl. 15 on. |
-| `0x6B2` | `Diagnose_01` | 8 | 1000 ms | Odometer + date/time (the MIB clock). Sent while Kl. 15 on. |
+| `0x5F0` | `Dimmung_01` | 8 | 500 ms | Display/panel dimming. Sent while Kl. 15 on, unless another node sends it. |
+| `0x6B2` | `Diagnose_01` | 8 | 1000 ms | Odometer + date/time (the MIB clock). Sent while Kl. 15 on, unless another node (a gateway) sends it. |
 
 The two MIB support messages are switched off with `ENABLE_MIB_MESSAGES` in
 `config.h`. Their cycle times are plausible defaults rather than measured
@@ -66,11 +117,16 @@ Klemme 50. The derivation is written up in
 1. Check the crystal on your MCP2515 board and set `MCP_CRYSTAL` in
    [`config.h`](config.h) to match. Ships configured for 8 MHz. **Getting this
    wrong is the most common failure** — init reports OK and nothing works.
-2. Wire it up per [HARDWARE.md](docs/HARDWARE.md): SPI to the Uno, button from
-   D4 to GND, LED on D6, common ground with the module under test.
-3. Install the **MCP_CAN** library by Cory J. Fowler.
-4. Upload `can-emulator.ino` and open the serial monitor at **115200 baud**.
-5. Press the button, or send `1`, to switch Klemme 15 on.
+2. Wire it up as drawn under [Wiring](#wiring): seven wires to the module, the
+   button from D4 to GND, the LCD on A0–A5, and a common ground with the module
+   under test.
+3. Install the **MCP_CAN** library by Cory J. Fowler, and **LiquidCrystal** by
+   Arduino for the display (the IDE ships it; arduino-cli needs
+   `lib install LiquidCrystal`).
+4. Upload `can-emulator.ino` and open the serial monitor at **115200 baud**. A
+   CH340 clone is `/dev/ttyUSB0`, a genuine Uno `/dev/ttyACM0`.
+5. Press the button, or send `1`, to switch Klemme 15 on; the LCD says
+   `KL15 ON`.
 
 ## Tests
 
@@ -94,6 +150,7 @@ mqb_klemmen.{h,cpp}  Klemmen_Status_01 (0x3C0) and the checksum
 mqb_mib.{h,cpp}      Dimmung_01, Diagnose_01, generic little-endian bit packer
 test/                host test harness with an Arduino.h shim
 docs/                hardware, usage and protocol documentation
+docs/img/            the wiring drawings (SVG)
 ```
 
 The `mqb_*` files are free of Arduino dependencies so they stay host-testable.
@@ -102,16 +159,20 @@ The `mqb_*` files are free of Arduino dependencies so they stay host-testable.
 
 Do **not** inject `0x3C0` into a complete, running vehicle — the real gateway
 already transmits that ID, and two nodes sending the same ID with different
-payloads causes error frames and can bus-off nodes. On a real car, use sniffer
-mode only. Full notes in
+payloads causes error frames and can bus-off nodes. On a real car, send `l`
+first: listen-only mode, in which the board neither transmits nor acknowledges
+and only sniffs. Full notes in
 [HARDWARE.md](docs/HARDWARE.md#safety-and-legal-notes).
 
 ## Sources
 
 - [Ross-Tech forum thread 5918](https://forums.ross-tech.com/index.php?threads/5918/page-10)
   — frame layout and reference checksums.
-- [`vw_mqb_2010.dbc`](https://github.com/RoosterIllusion/opendbc-7.x/blob/master/vw_mqb_2010.dbc)
+- [`vw_mqb.dbc`](https://github.com/commaai/opendbc/blob/master/opendbc/dbc/vw_mqb.dbc)
   — signal definitions, from commaai/opendbc.
+- [commaai/opendbc's VW checksum](https://github.com/commaai/opendbc/blob/master/opendbc/car/volkswagen/mqbcan.py)
+  — arrives at the same magic byte `0xC3` for `0x3C0` independently, and its
+  tests carry the same 16 reference frames.
 
 Not affiliated with or endorsed by Volkswagen AG. "MQB", "MIB" and VW part
 designations are used descriptively.

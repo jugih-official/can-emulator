@@ -5,9 +5,12 @@
 | Qty | Part | Notes |
 |---|---|---|
 | 1 | Arduino Uno R3 | Any AVR Uno-compatible works. Nano/Pro Mini need pin changes in `config.h`. |
+| 1 | USB A–B cable | Powers the Uno and carries the serial console. |
 | 1 | MCP2515 CAN module with TJA1050 transceiver | The common blue "niren" or black board. **Check the crystal.** |
 | 1 | Momentary push button | Normally-open, any tactile switch. |
-| 1 | LED + 330 Ω resistor | Optional, shows Klemme 15 state. |
+| 1 | 16×2 character LCD, 1602A type | The plain 16-pin parallel module, no I²C backpack. Optional. |
+| 1 | 10 kΩ trimmer | LCD contrast. A fixed 1–2 kΩ from V0 to GND does on most modules. |
+| 1 | 220 Ω resistor | LCD backlight. |
 | 1 | Bench PSU, 12 V, ≥10 A | For Klemme 30 to the module under test. A MIB unit can pull 5 A+. |
 | — | Jumper wires, 0.5 mm² wire for the 12 V side | |
 | 1 | Inline fuse, 10–15 A | On the 12 V feed. Not optional. |
@@ -28,6 +31,15 @@ The project ships configured for **8 MHz**.
 
 ## Wiring
 
+![Arduino Uno R3 to MCP2515 module, every wire](img/wiring-uno-mcp2515.svg)
+
+The Uno is drawn to scale with the USB to the left, the 16×2 LCD at half that
+scale under the analog header it hangs from. The module is the common blue or
+black MCP2515 + TJA1050 board: a 7-pin header that reads
+`INT SCK SI SO CS GND VCC`, a `CAN H` / `CAN L` screw terminal, the crystal and
+the `J1` termination jumper. Go by the printed names if your board's header is
+ordered differently. The same wiring in text:
+
 ```
         Arduino Uno                      MCP2515 module
        ┌──────────────┐                 ┌────────────────┐
@@ -40,9 +52,14 @@ The project ships configured for **8 MHz**.
        │          D2  ◄────────────────┤ INT            │
        │              │                 └────────────────┘
        │          D4  ├───[ button ]───┐
-       │              │                 │
-       │          D6  ├───[LED]─[330Ω]─┤
        │         GND  ├─────────────────┘
+       │              │                  1602A 16x2 LCD
+       │          A0  ├────────────────► RS
+       │          A1  ├────────────────► E
+       │       A2–A5  ├────────────────► D4–D7           (D0–D3 open)
+       │          5V  ├────────────────► VDD, and A via 220 Ω
+       │         GND  ├────────────────► VSS, RW, K
+       │              │   trimmer wiper ► V0  (trimmer ends to 5V and GND)
        └──────────────┘
 ```
 
@@ -60,25 +77,54 @@ The project ships configured for **8 MHz**.
 
 D11/D12/D13 are the Uno's hardware SPI pins and cannot be moved.
 
-### Controls
+### Controls and display
 
 | Part | Connection |
 |---|---|
 | Button | D4 → switch → GND |
-| LED | D6 → LED anode; cathode → 330 Ω → GND |
+| 16×2 LCD | A0 → RS, A1 → E, A2–A5 → D4–D7. VSS, RW, K → GND; VDD → 5V; A → 5V via 220 Ω; V0 → contrast; D0–D3 open |
 
 The button uses the AVR's internal pull-up (`INPUT_PULLUP`), so **no external
 resistor is needed** — just a bare switch to ground. Pressed reads LOW.
 
-The LED is on **D6, not D13**. On the Uno the built-in LED shares D13 with the
-SPI clock, so it flickers with bus traffic and can't be driven independently.
+The LCD is the plain 16-pin parallel 1602A (HD44780 type) in 4-bit mode, driven
+by the standard `LiquidCrystal` library (the Arduino IDE ships it; arduino-cli
+needs `lib install LiquidCrystal`). The
+six signal wires drop from one row of the analog header, which the sketch uses
+as digital outputs. Contrast on V0 is best set with a 10 kΩ trimmer between 5V
+and GND, wiper to V0; a fixed 1–2 kΩ from V0 to GND is readable on most of
+these modules, while V0 straight to GND usually gives ghost boxes. The
+backlight anode A takes 5 V through 220 Ω (some modules carry that resistor on
+board; the external one never hurts) and K goes to GND. The LCD is optional:
+`ENABLE_LCD 0` builds without it.
+
+An LED showing Klemme 15 is still possible on **D6** (`ENABLE_STATUS_LED 1`;
+anode to D6, cathode → 330 Ω → GND). Not D13: on the Uno the built-in LED
+shares D13 with the SPI clock, so it flickers with bus traffic and can't be
+driven independently.
 
 ## Connecting to the vehicle bus
 
 ### On a bench harness (the intended use)
 
-Tap CAN-High and CAN-Low from the gateway connector on your harness. On the MQB
-gateway **J533**, that is **pin 5 = CAN-High** and **pin 15 = CAN-Low**.
+Tap CAN-High and CAN-Low of the bus the module sits on — normally at the
+module's own connector. If the harness runs to the gateway **J533** instead,
+its 20-pin connector **T20e** carries every bus. From the VW workshop
+illustration reproduced in the
+[openpilot wiki](https://github.com/commaai/openpilot/wiki/VW-J533-(Gateway)-Cable):
+
+| Bus | CAN-Low | CAN-High |
+|---|---|---|
+| Convenience (Komfort) | 5 | 15 |
+| Powertrain (Antrieb) | 6 | 16 |
+| Extended | 7 | 17 |
+| Running gear sensors | 8 | 18 |
+| Diagnostic | 9 | 19 |
+| Infotainment | 10 | 20 |
+
+Pins 1–2 are terminal 30, 11–12 terminal 31, 14 terminal 15, and 3 / 13 are
+the LIN buses to J367 and J527. Low is on 5–10, high on 15–20; an earlier
+version of this page had the Komfort pair the other way round.
 
 VW CAN wire colours are typically orange with a coloured stripe:
 
@@ -130,13 +176,17 @@ Use a supply that can hold 12–14 V under load. A MIB head unit drawing 5 A fro
 a 2 A wall wart will brown out and reboot in a loop, which looks exactly like a
 CAN problem and isn't.
 
+![The bench: PC, Uno, MCP2515, module under test and the 12 V supply](img/bench-overview.svg)
+
 ## Safety and legal notes
 
 - **Do not inject `Klemmen_Status_01` into a complete, running vehicle.** The
   real gateway already transmits ID `0x3C0`. Two nodes sending the same ID with
   different payloads causes arbitration loss and error frames, and can bus-off
-  nodes. On a real car, use **sniffer mode only** (`ENABLE_MIB_MESSAGES 0` and
-  don't transmit) or an MCP2515 in listen-only mode.
+  nodes. `0x3C0` is sent continuously by design and cannot be switched off on
+  its own, so on a real car put the board in **listen-only mode** first: send
+  `l`, or build with `LISTEN_ONLY_DEFAULT 1` in `config.h`. The MCP2515 then
+  neither transmits nor acknowledges, and the sniffer still sees everything.
 - Never do this on a vehicle on a public road, or one that will be driven
   afterwards without verification.
 - Disconnect the vehicle battery before making or breaking harness connections.
