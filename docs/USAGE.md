@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 10580 bytes (32%) of program storage space. Maximum is 32256 bytes.
-Global variables use 658 bytes (32%) of dynamic memory, leaving 1390 bytes...
+Sketch uses 12750 bytes (39%) of program storage space. Maximum is 32256 bytes.
+Global variables use 694 bytes (33%) of dynamic memory, leaving 1354 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -79,6 +79,7 @@ MCP2515 init: ok
 1/0 ign on/off   t toggle ign   x toggle Kl X   5 pulse Kl 50
 s status   d toggle tx trace   r toggle rx dump   p rx stats
 c clear rx stats   +/- dimming   l listen-only   h help
+b short press   B long press   v what the LCD shows
 ```
 
 Both `PASS` and `ok` are required.
@@ -108,6 +109,8 @@ sniffing a real car.
 | `p` | Print per-ID receive statistics |
 | `c` | Clear receive statistics |
 | `l` | Toggle listen-only: nothing is transmitted, not even acknowledge bits. The mode for a real car. |
+| `b` / `B` | A short / long press of the button, for driving the menu from the console |
+| `v` | Print the two lines the LCD is showing |
 | `h` | Help |
 
 ### Reading the status
@@ -140,18 +143,70 @@ sniffing a real car.
 Klemme 50 is refused while ignition is off — you cannot crank without T15, and
 neither can the real car.
 
-## The button
+## The button and the menu
 
-The push button on **D4** toggles Klemme 15, exactly like `t`. Debounce is
-40 ms (`BUTTON_DEBOUNCE_MS`).
+One push button on **D4** does everything, by telling a short press from a held
+one (`BUTTON_LONG_MS`, 0.7 s).
 
-The Uno has no usable built-in button — RESET is the only one on the board — so
-this needs a switch wired between D4 and GND. See [HARDWARE.md](HARDWARE.md).
+| Screen | Short press | Hold |
+|---|---|---|
+| Home | Toggle Klemme 15, like `t` | Open the menu |
+| Menu | Next item | Act on the item |
+| Bus monitor | Next ID | Back to the menu |
+
+The menu shows the item and its position on the top line, its value and what
+holding does on the bottom line:
+
+```
+Dimming      3/9
+100    hold=+10
+```
+
+| Item | Holding the button |
+|---|---|
+| `Kl X` | Switches Klemme X on / off |
+| `Kl 50 crank` | Starter request for as long as it is held. Needs Klemme 15 on. |
+| `Dimming` | +10 per step, 10…250, then round again; keeps stepping while held |
+| `Clock hour` | +1 hour per step |
+| `Clock minute` | +1 minute per step, seconds back to 0 |
+| `Bus monitor` | Opens the monitor, below |
+| `Listen-only` | On / off, like `l` |
+| `Health` | Nothing; it is there to be read |
+| `Back` | Home screen |
+
+A menu left alone for 20 s (`MENU_TIMEOUT_MS`) returns to the home screen,
+except on `Health` and in the bus monitor. Dimming and the clock exist only
+with `ENABLE_MIB_MESSAGES`.
+
+`Health` reads `t  0 r  0 e40 i0`: the controller's transmit and receive error
+counters, its error flags in hex and the number of re-inits, as explained under
+[Reading the status](#reading-the-status).
+
+### Bus monitor
+
+The first page is the summary, then one page per 11-bit ID in the order they
+were first seen:
+
+```
+BUS    85 fps       frames per second, all IDs
+ids 13 ext    84    11-bit IDs seen, and 29-bit frames received
+
+3DC   49ms  3/13    ID, time since its previous frame, page
+FF01000000010000    its latest payload, eight bytes as hex
+```
+
+It reads the same table as `p`, so `c` on the console empties it, and it holds
+at most `SNIFFER_MAX_IDS` IDs. It works in listen-only mode too, which makes
+the box a stand-alone sniffer for a real car.
+
+Debounce is 40 ms (`BUTTON_DEBOUNCE_MS`). The Uno has no usable built-in button
+— RESET is the only one on the board — so this needs a switch wired between D4
+and GND. See [HARDWARE.md](HARDWARE.md).
 
 ## The display
 
 A 16×2 LCD on **A0–A5** (`ENABLE_LCD`, on by default) shows the state without a
-laptop:
+laptop. The home screen:
 
 ```
 KL15 ON   X  50     Klemme 15 on or off; X and 50 appear while those are set
@@ -223,7 +278,10 @@ All tunables live in [`config.h`](../config.h).
 | `MCP_CRYSTAL` | `MCP_8MHZ` | **Must match your board.** |
 | `MCP_BITRATE` | `CAN_500KBPS` | MQB Komfort/Infotainment rate |
 | `MCP_CS_PIN` | 10 | SPI chip select |
-| `BUTTON_PIN` | 4 | Ignition button |
+| `BUTTON_PIN` | 4 | The button |
+| `BUTTON_LONG_MS` | 700 | Held this long, a press is a long one |
+| `BUTTON_REPEAT_MS` | 300 | Step interval while the button stays held |
+| `MENU_TIMEOUT_MS` | 20000 | An idle menu returns to the home screen |
 | `STATUS_LED_PIN` | 6 | Klemme 15 LED, with `ENABLE_STATUS_LED 1` |
 | `KLEMMEN_CYCLE_MS` | 100 | Do not change; receivers fault on drift |
 | `DIMMUNG_CYCLE_MS` | 500 | Assumed, verify by sniffing |

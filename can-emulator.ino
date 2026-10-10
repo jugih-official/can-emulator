@@ -7,10 +7,10 @@
 // being present. Optionally also sends the dimming and clock messages a MIB
 // head unit expects.
 //
-// Push button on BUTTON_PIN toggles ignition and a 16x2 LCD shows the state
-// and the counters. Serial console at 115200 gives the same control plus a
-// sniffer, and 'l' makes the controller listen-only for sniffing a complete
-// car without disturbing it. See README.md for wiring.
+// A short press of the push button on BUTTON_PIN toggles ignition; a long one
+// opens a menu on the 16x2 LCD for the other terminals, dimming, the clock, a
+// bus monitor and listen-only mode. Serial console at 115200 gives the same
+// control plus a sniffer. See README.md for wiring.
 // ---------------------------------------------------------------------------
 #include <SPI.h>
 #include <mcp_can.h>
@@ -53,10 +53,14 @@ static uint32_t g_diagnoseHeardAt = 0;
 static uint32_t g_nextKlemmenAt = 0;
 static uint32_t g_kl50EndsAt    = 0;
 
-// Button edge detection with debounce.
+// Button: debounce, and telling a short press from a held one.
 static bool     g_btnStable    = HIGH;   // pull-up: HIGH == released
 static bool     g_btnLast      = HIGH;
 static uint32_t g_btnChangedAt = 0;
+static uint32_t g_btnDownAt    = 0;
+static bool     g_btnHeld      = false;  // this press already counted as a long one
+static uint32_t g_btnRepeatAt  = 0;
+enum : uint8_t { BTN_NONE, BTN_SHORT, BTN_LONG, BTN_REPEAT };
 
 // --- sniffer ---------------------------------------------------------------
 static bool g_sniff = false;
@@ -72,6 +76,35 @@ static uint8_t g_statCount = 0;
 static bool    g_statsFull = false;
 
 #if ENABLE_LCD
+// --- one-button menu ---------------------------------------------------------
+enum : uint8_t { SCR_HOME, SCR_MENU, SCR_MONITOR };
+enum : uint8_t {
+  ITEM_KL_X,
+  ITEM_KL_50,
+#if ENABLE_MIB_MESSAGES
+  ITEM_DIMMING,
+  ITEM_HOUR,
+  ITEM_MINUTE,
+#endif
+  ITEM_MONITOR,
+  ITEM_LISTEN,
+  ITEM_HEALTH,
+  ITEM_BACK,
+  ITEM_COUNT          // at most 9: the position is shown as one digit
+};
+static uint8_t  g_screen = SCR_HOME;
+static uint8_t  g_item   = 0;
+static uint32_t g_uiTouchedAt = 0;
+// Bus monitor: page 0 is the summary, page n the n-th ID of the sniffer table.
+// Payload and interval are kept for the ID on show only, not for all of them.
+static uint8_t  g_monPage  = 0;
+static uint8_t  g_monDlc   = 0xFF;   // 0xFF: nothing seen since the page was opened
+static uint8_t  g_monData[8];
+static uint16_t g_monDelta = 0;
+static uint16_t g_fps      = 0;
+static uint16_t g_fpsCount = 0;
+static uint32_t g_nextFpsAt = 0;
+
 static LiquidCrystal g_lcd(LCD_RS_PIN, LCD_E_PIN, LCD_D4_PIN, LCD_D5_PIN, LCD_D6_PIN, LCD_D7_PIN);
 static char     g_lcdShown[2][16];   // what is on the glass, so only changes get written
 static uint32_t g_nextLcdAt = 0;
@@ -181,16 +214,16 @@ static bool sendFrame(uint16_t id, uint8_t dlc, uint8_t *data) {
   return rc == CAN_OK;
 }
 
-#if ENABLE_SERIAL_CONTROL
 // Listen-only also withholds the acknowledge bit, so the controller leaves no
 // trace on the bus at all -- the mode for a real, running car.
 static void setListenOnly(bool on) {
   g_listenOnly = on;
   if (g_busOk) CAN.setMode(on ? MCP_LISTENONLY : MCP_NORMAL);
+#if ENABLE_SERIAL_CONTROL
   Serial.print(F("listen-only: "));
   Serial.println(on ? F("ON, transmitting nothing") : F("OFF"));
-}
 #endif
+}
 
 static void setIgnition(bool on) {
   g_state.kl_s  = on;   // the key is "inserted" whenever ignition is on
@@ -238,18 +271,84 @@ static void sendKlemmenStatus() {
 
 // ---------------------------------------------------------------------------
 
-static void serviceButton() {
+// A short press is reported on release, so that it can be told from a long
+// one. A long press is reported while still held, and again every
+// BUTTON_REPEAT_MS for as long as it stays held.
+static uint8_t pollButton() {
+  uint32_t now = millis();
   bool raw = digitalRead(BUTTON_PIN);
   if (raw != g_btnLast) {
     g_btnLast      = raw;
-    g_btnChangedAt = millis();
-    return;
+    g_btnChangedAt = now;
+    return BTN_NONE;
   }
-  if (raw == g_btnStable) return;
-  if (millis() - g_btnChangedAt < BUTTON_DEBOUNCE_MS) return;
+  if (raw != g_btnStable) {
+    if (now - g_btnChangedAt < BUTTON_DEBOUNCE_MS) return BTN_NONE;
+    g_btnStable = raw;
+    if (raw == LOW) { g_btnDownAt = now; g_btnHeld = false; return BTN_NONE; }
+    return g_btnHeld ? BTN_NONE : BTN_SHORT;
+  }
+  if (raw == HIGH) return BTN_NONE;
+  if (!g_btnHeld) {
+    if (now - g_btnDownAt < BUTTON_LONG_MS) return BTN_NONE;
+    g_btnHeld = true;
+    g_btnRepeatAt = now + BUTTON_REPEAT_MS;
+    return BTN_LONG;
+  }
+  if ((int32_t)(now - g_btnRepeatAt) < 0) return BTN_NONE;
+  g_btnRepeatAt = now + BUTTON_REPEAT_MS;
+  return BTN_REPEAT;
+}
 
-  g_btnStable = raw;
-  if (raw == LOW) setIgnition(!g_state.kl_15);   // pressed
+#if ENABLE_LCD
+// Holding the button on a menu item. Values step on for as long as it is held;
+// switches and screen changes act once per press.
+static void menuAction(bool repeat) {
+  switch (g_item) {
+    case ITEM_KL_X:   if (!repeat) g_state.kl_x = !g_state.kl_x; break;
+    case ITEM_KL_50:  pulseKl50(); break;          // held: keeps cranking
+#if ENABLE_MIB_MESSAGES
+    case ITEM_DIMMING:
+      g_dimmung.kl58xd = g_dimmung.kl58xd >= 250 ? 10 : g_dimmung.kl58xd + 10;
+      break;
+    case ITEM_HOUR:   g_clock.hour = (uint8_t)((g_clock.hour + 1) % 24); break;
+    case ITEM_MINUTE: g_clock.minute = (uint8_t)((g_clock.minute + 1) % 60);
+                      g_clock.second = 0; break;
+#endif
+    case ITEM_MONITOR:
+      if (!repeat) { g_screen = SCR_MONITOR; g_monPage = 0; g_monDlc = 0xFF; }
+      break;
+    case ITEM_LISTEN: if (!repeat) setListenOnly(!g_listenOnly); break;
+    case ITEM_BACK:   if (!repeat) g_screen = SCR_HOME; break;
+    default: break;
+  }
+}
+#endif
+
+// Home: short press toggles ignition, long press opens the menu.
+// Menu: short press is the next item, holding acts on it.
+// Bus monitor: short press is the next ID, long press goes back to the menu.
+static void buttonEvent(uint8_t ev) {
+  if (ev == BTN_NONE) return;
+#if ENABLE_LCD
+  g_uiTouchedAt = millis();
+  switch (g_screen) {
+    case SCR_HOME:
+      if (ev == BTN_SHORT) setIgnition(!g_state.kl_15);
+      else if (ev == BTN_LONG) { g_screen = SCR_MENU; g_item = 0; }
+      break;
+    case SCR_MONITOR:
+      if (ev == BTN_SHORT) { g_monPage++; g_monDlc = 0xFF; }
+      else if (ev == BTN_LONG) g_screen = SCR_MENU;
+      break;
+    default:
+      if (ev == BTN_SHORT) { if (++g_item >= ITEM_COUNT) g_item = 0; }
+      else menuAction(ev == BTN_REPEAT);
+      break;
+  }
+#else
+  if (ev == BTN_SHORT) setIgnition(!g_state.kl_15);
+#endif
 }
 
 static void serviceSniffer() {
@@ -261,6 +360,9 @@ static void serviceSniffer() {
   uint8_t buf[8];
   if (!mcpReadFrame(id, extended, dlc, buf)) return;
   g_rxCount++;
+#if ENABLE_LCD
+  if (g_fpsCount < 0xFFFF) g_fpsCount++;
+#endif
 
 #if ENABLE_SERIAL_CONTROL
   if (g_sniff) {
@@ -300,12 +402,19 @@ static void serviceSniffer() {
   }
 
   if (st != NULL) {
+    uint32_t d = now - st->lastMs;
+    if (d > 0xFFFF) d = 0xFFFF;
     if (st->count > 0) {
-      uint32_t d = now - st->lastMs;
-      if (d > 0xFFFF) d = 0xFFFF;
       if (d < st->minDelta) st->minDelta = (uint16_t)d;
       if (d > st->maxDelta) st->maxDelta = (uint16_t)d;
     }
+#if ENABLE_LCD
+    if (g_monPage > 0 && st == &g_stats[g_monPage - 1]) {
+      g_monDelta = st->count > 0 ? (uint16_t)d : 0;
+      g_monDlc   = dlc;
+      memcpy(g_monData, buf, dlc);
+    }
+#endif
     st->lastMs = now;
     if (st->count < 0xFFFF) st->count++;
   }
@@ -368,6 +477,7 @@ static void printHelp() {
   Serial.println(F("1/0 ign on/off   t toggle ign   x toggle Kl X   5 pulse Kl 50"));
   Serial.println(F("s status   d toggle tx trace   r toggle rx dump   p rx stats"));
   Serial.println(F("c clear rx stats   +/- dimming   l listen-only   h help"));
+  Serial.println(F("b short press   B long press   v what the LCD shows"));
 }
 
 static void serviceSerial() {
@@ -387,6 +497,15 @@ static void serviceSerial() {
     case 'c': g_statCount = 0; g_statsFull = false; g_rxCount = 0; g_rxExtended = 0;
               Serial.println(F("rx stats cleared")); break;
     case 'l': setListenOnly(!g_listenOnly); break;
+    case 'b': buttonEvent(BTN_SHORT); break;
+    case 'B': buttonEvent(BTN_LONG);  break;
+#if ENABLE_LCD
+    case 'v':
+      for (uint8_t row = 0; row < 2; row++) {
+        Serial.print('|'); Serial.write((const uint8_t *)g_lcdShown[row], 16); Serial.println('|');
+      }
+      break;
+#endif
 #if ENABLE_MIB_MESSAGES
     case '+': if (g_dimmung.kl58xd < 250) g_dimmung.kl58xd += 10;
               Serial.println(g_dimmung.kl58xd); break;
@@ -445,34 +564,155 @@ static void lcdLine(uint8_t row, const char *line) {
   }
 }
 
+static char hexDigit(uint8_t v) {
+  v &= 0x0F;
+  return (char)(v < 10 ? '0' + v : 'A' + v - 10);
+}
+
+static void lcdTwoDigits(char *dst, uint8_t v) {
+  dst[0] = (char)('0' + v / 10 % 10);
+  dst[1] = (char)('0' + v % 10);
+}
+
 //   KL15 ON   X  50     terminal state, X and 50 while those are set
 //   tx 123456 err  0    frames sent, and frames the controller could not send
 // Listen-only shows what is on the bus instead, and a failed boot check takes
 // the first line.
-static void serviceLcd() {
-  if (!due(g_nextLcdAt, LCD_REFRESH_MS)) return;
-  char line[16];
-
-  if (!g_selfTestOk)     lcdText(line, PSTR("CHECKSUM FAIL"));
-  else if (!g_busOk)     lcdText(line, PSTR("MCP2515 FAILED"));
-  else if (g_listenOnly) lcdText(line, PSTR("LISTEN-ONLY"));
+static void lcdHome(char *top, char *bottom) {
+  if (!g_selfTestOk)     lcdText(top, PSTR("CHECKSUM FAIL"));
+  else if (!g_busOk)     lcdText(top, PSTR("MCP2515 FAILED"));
+  else if (g_listenOnly) lcdText(top, PSTR("LISTEN-ONLY"));
   else {
-    lcdText(line, g_state.kl_15 ? PSTR("KL15 ON") : PSTR("KL15 OFF"));
-    if (g_state.kl_x)  line[10] = 'X';
-    if (g_state.kl_50) { line[13] = '5'; line[14] = '0'; }
+    lcdText(top, g_state.kl_15 ? PSTR("KL15 ON") : PSTR("KL15 OFF"));
+    if (g_state.kl_x)  top[10] = 'X';
+    if (g_state.kl_50) { top[13] = '5'; top[14] = '0'; }
   }
-  lcdLine(0, line);
 
   if (g_listenOnly) {
-    lcdText(line, PSTR("rx        ids"));
-    lcdNumber(line + 3, 6, g_rxCount);
-    lcdNumber(line + 14, 2, g_statCount);
+    lcdText(bottom, PSTR("rx        ids"));
+    lcdNumber(bottom + 3, 6, g_rxCount);
+    lcdNumber(bottom + 14, 2, g_statCount);
   } else {
-    lcdText(line, PSTR("tx        err"));
-    lcdNumber(line + 3, 6, g_txOk);
-    lcdNumber(line + 13, 3, g_txErr);
+    lcdText(bottom, PSTR("tx        err"));
+    lcdNumber(bottom + 3, 6, g_txOk);
+    lcdNumber(bottom + 13, 3, g_txErr);
   }
-  lcdLine(1, line);
+}
+
+//   Dimming      3/9    the item and where it is in the menu
+//   100    hold=+10     its value, and what holding the button does
+static void lcdMenu(char *top, char *bottom) {
+  static const char onHint[]  PROGMEM = "on   hold=toggle";
+  static const char offHint[] PROGMEM = "off  hold=toggle";
+  switch (g_item) {
+    case ITEM_KL_X:
+      lcdText(top, PSTR("Kl X"));
+      lcdText(bottom, g_state.kl_x ? onHint : offHint);
+      break;
+    case ITEM_KL_50:
+      lcdText(top, PSTR("Kl 50 crank"));
+      lcdText(bottom, g_state.kl_50 ? PSTR("cranking")
+                    : g_state.kl_15 ? PSTR("hold = crank") : PSTR("needs Kl 15 on"));
+      break;
+#if ENABLE_MIB_MESSAGES
+    case ITEM_DIMMING:
+      lcdText(top, PSTR("Dimming"));
+      lcdText(bottom, PSTR("       hold=+10"));
+      lcdNumber(bottom, 3, g_dimmung.kl58xd);
+      break;
+    case ITEM_HOUR:
+    case ITEM_MINUTE:
+      lcdText(top, g_item == ITEM_HOUR ? PSTR("Clock hour") : PSTR("Clock minute"));
+      lcdText(bottom, g_item == ITEM_HOUR ? PSTR("  :    hold=+1h") : PSTR("  :    hold=+1m"));
+      lcdTwoDigits(bottom, g_clock.hour);
+      lcdTwoDigits(bottom + 3, g_clock.minute);
+      break;
+#endif
+    case ITEM_MONITOR:
+      lcdText(top, PSTR("Bus monitor"));
+      lcdText(bottom, PSTR("hold = open"));
+      break;
+    case ITEM_LISTEN:
+      lcdText(top, PSTR("Listen-only"));
+      lcdText(bottom, g_listenOnly ? onHint : offHint);
+      break;
+    case ITEM_HEALTH:
+      //   t  0 r  0 e40 i0    CAN error counters, error flags, re-inits
+      lcdText(top, PSTR("Health"));
+      lcdText(bottom, PSTR("t    r    e   i"));
+      if (g_busOk) {
+        lcdNumber(bottom + 1, 3, mcpReadRegister(MCP_REG_TEC));
+        lcdNumber(bottom + 6, 3, mcpReadRegister(MCP_REG_REC));
+        uint8_t eflg = mcpReadRegister(MCP_REG_EFLG);
+        bottom[11] = hexDigit(eflg >> 4);
+        bottom[12] = hexDigit(eflg);
+      } else {
+        lcdText(bottom, PSTR("MCP2515 FAILED"));
+      }
+      lcdNumber(bottom + 15, 1, g_recoveries);
+      break;
+    default:
+      lcdText(top, PSTR("Back"));
+      lcdText(bottom, PSTR("hold = home"));
+      break;
+  }
+  top[13] = (char)('1' + g_item);
+  top[14] = '/';
+  top[15] = (char)('0' + ITEM_COUNT);
+}
+
+//   BUS    87 fps       frames per second on the bus
+//   ids 16 ext    40    11-bit IDs seen, and 29-bit frames
+// then one page per ID:
+//   3DC   50ms  2/16    the ID, time since its previous frame, position
+//   0011223344556677    its latest payload
+static void lcdMonitor(char *top, char *bottom) {
+  if (g_monPage > g_statCount) { g_monPage = 0; g_monDlc = 0xFF; }
+  if (g_monPage == 0) {
+    lcdText(top, PSTR("BUS       fps"));
+    lcdNumber(top + 4, 5, g_fps);
+    lcdText(bottom, PSTR("ids    ext"));
+    lcdNumber(bottom + 4, 2, g_statCount);
+    lcdNumber(bottom + 11, 5, g_rxExtended);
+    return;
+  }
+  uint16_t id = g_stats[g_monPage - 1].id;
+  lcdText(top, PSTR("        ms"));
+  top[0] = hexDigit((uint8_t)(id >> 8));
+  top[1] = hexDigit((uint8_t)(id >> 4));
+  top[2] = hexDigit((uint8_t)id);
+  top[13] = '/';
+  lcdNumber(top + 11, 2, g_monPage);
+  lcdNumber(top + 14, 2, g_statCount);
+  if (g_monDlc == 0xFF) {
+    lcdText(bottom, PSTR("waiting"));
+    return;
+  }
+  lcdNumber(top + 3, 5, g_monDelta);
+  lcdText(bottom, PSTR(""));
+  for (uint8_t i = 0; i < g_monDlc; i++) {
+    bottom[2 * i]     = hexDigit(g_monData[i] >> 4);
+    bottom[2 * i + 1] = hexDigit(g_monData[i]);
+  }
+}
+
+static void serviceLcd() {
+  if (due(g_nextFpsAt, 1000)) { g_fps = g_fpsCount; g_fpsCount = 0; }
+  if (!due(g_nextLcdAt, LCD_REFRESH_MS)) return;
+
+  // A menu left alone goes back to the home screen. Not the health item,
+  // which is there to be watched, and not the bus monitor.
+  if (g_screen == SCR_MENU && g_item != ITEM_HEALTH &&
+      millis() - g_uiTouchedAt > MENU_TIMEOUT_MS) {
+    g_screen = SCR_HOME;
+  }
+
+  char top[16], bottom[16];
+  if (g_screen == SCR_MENU)         lcdMenu(top, bottom);
+  else if (g_screen == SCR_MONITOR) lcdMonitor(top, bottom);
+  else                              lcdHome(top, bottom);
+  lcdLine(0, top);
+  lcdLine(1, bottom);
 }
 #endif
 
@@ -517,11 +757,12 @@ void setup() {
 #endif
 #if ENABLE_LCD
   g_nextLcdAt = now;
+  g_nextFpsAt = now;
 #endif
 }
 
 void loop() {
-  serviceButton();
+  buttonEvent(pollButton());
   serviceSniffer();
   serviceHealth();
 #if ENABLE_SERIAL_CONTROL

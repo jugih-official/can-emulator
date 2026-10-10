@@ -22,6 +22,12 @@
 // this pin and GND; the internal pull-up handles the rest (no resistor needed).
 #define BUTTON_PIN         4
 #define BUTTON_DEBOUNCE_MS 40
+// Held this long, a press opens the menu or acts on the menu item instead of
+// being a short press; held on, it repeats at the second interval.
+#define BUTTON_LONG_MS     700
+#define BUTTON_REPEAT_MS   300
+// A menu left alone returns to the home screen after this long.
+#define MENU_TIMEOUT_MS    20000
 
 // Klemme 15 indicator LED, optional and off by default now that the LCD shows
 // the state. If wanted: an LED + ~330R from this pin to GND, and 1 here.

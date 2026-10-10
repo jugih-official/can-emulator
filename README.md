@@ -5,7 +5,9 @@ CAN frame, so modules on a bench harness believe the ignition is on without a
 body control module, steering column module (J527) or immobiliser present.
 
 Ignition is toggled with a push button on the Arduino or over a serial console,
-and a 16×2 LCD shows the state and the counters. A built-in sniffer, with a
+and a 16×2 LCD shows the state and the counters. Holding the button opens a
+menu on the LCD: the other terminals, dimming, the clock, a bus monitor and
+listen-only mode, all without a laptop. A built-in sniffer, with a
 listen-only mode that transmits nothing, lets you capture what a real car sends
 and check your assumptions against it.
 
@@ -126,7 +128,8 @@ Klemme 50. The derivation is written up in
 4. Upload `can-emulator.ino` and open the serial monitor at **115200 baud**. A
    CH340 clone is `/dev/ttyUSB0`, a genuine Uno `/dev/ttyACM0`.
 5. Press the button, or send `1`, to switch Klemme 15 on; the LCD says
-   `KL15 ON`.
+   `KL15 ON`. Hold the button for the menu: see
+   [USAGE.md](docs/USAGE.md#the-button-and-the-menu).
 
 ## Tests
 

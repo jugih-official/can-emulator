@@ -85,7 +85,8 @@ D11/D12/D13 are the Uno's hardware SPI pins and cannot be moved.
 | 16×2 LCD | A0 → RS, A1 → E, A2–A5 → D4–D7. VSS, RW, K → GND; VDD → 5V; A → 5V via 220 Ω; V0 → contrast; D0–D3 open |
 
 The button uses the AVR's internal pull-up (`INPUT_PULLUP`), so **no external
-resistor is needed** — just a bare switch to ground. Pressed reads LOW.
+resistor is needed** — just a bare switch to ground. Pressed reads LOW. A short
+press toggles Klemme 15 and a long one opens the menu on the LCD.
 
 The LCD is the plain 16-pin parallel 1602A (HD44780 type) in 4-bit mode, driven
 by the standard `LiquidCrystal` library (the Arduino IDE ships it; arduino-cli
