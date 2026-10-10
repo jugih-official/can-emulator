@@ -219,6 +219,31 @@ Use the firmware's sniffer (`p`) against a real car to confirm, and adjust
 some receivers flag a sender as faulty if a cyclic message drifts more than
 roughly ±10 % from its nominal period.
 
+## Supply voltage: no known broadcast
+
+The emulator shows the supply voltage from one byte of a CAN frame, and which
+frame that should be on MQB is not publicly documented. What a search of the
+public sources turned up:
+
+- **opendbc** (`vw_mqb.dbc`, `vw_mqbevo.dbc`, `vw_mlb.dbc`): no 12 V battery
+  or terminal 30 voltage signal. The voltage signals there belong to the
+  hybrid DC/DC converter and the high-voltage battery.
+- **PQ platform** (`vw_pq.dbc`): `BSG_Last`, ID `0x570`, carries
+  `Batteriespannung_Bordnetzbatter`, 8 bits from bit 16, 0.05 V per bit plus
+  5 V. That is the older platform; an MQB gateway on the bench did not send
+  `0x570`.
+- **The standard way** is not a broadcast but a question: OBD-II service
+  `01`, PID `42`, "control module voltage", asked on `0x7DF` and answered by
+  the engine control unit on `0x7E8`. It needs an engine control unit on the
+  bus, and it makes the emulator a second tester, which this project avoids
+  next to a tester that may be flashing.
+- **Volkswagen's own way** is a UDS measured value read from a control unit
+  with service `22`. ODIS shows the identifier of each measured value in its
+  RDID column, so the gateway's terminal 30 voltage can be looked up there.
+
+So the default in `config.h`, byte 0 of `0x663` at 0.1 V per bit, remains a
+guess from one captured payload until it has been seen to follow the supply.
+
 ## Adding another message
 
 1. Add the ID, DLC and a `…State` struct to `mqb_mib.h`.

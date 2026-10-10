@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 15152 bytes (46%) of program storage space. Maximum is 32256 bytes.
-Global variables use 777 bytes (37%) of dynamic memory, leaving 1271 bytes...
+Sketch uses 15234 bytes (47%) of program storage space. Maximum is 32256 bytes.
+Global variables use 773 bytes (37%) of dynamic memory, leaving 1275 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -239,27 +239,30 @@ laptop. The home screen:
 
 ```
 KL15 ON  X?12.3V    Klemme 15 on or off, X while Klemme X is set, supply voltage
-BKLT w              four icons and the radio-wave symbol
+Bb Kk Dd Oo .))     four icons, each two cells wide, and the wave
 ```
 
-The radio-wave symbol, a dot with arcs spreading from it, shows that the
-traffic is alive. It keeps waving for as long as the emulator's frames go out
-and are acknowledged; in listen-only mode, for as long as frames come in. It
-is replaced by `!` while frames are failing to send, usually because nothing
-on the bus acknowledges them, and by a dash when nothing moves at all. Once
-any frame has failed, the count stays at the end of the line, `e12`, where
-`e99` means 99 or more; the exact totals are in `s` on the console.
-
 The first line reads `CRANKING` while Klemme 50 is held. The four icons are
-drawn on the glass as a battery, a key, a lamp and a plug; each is a dash while
-it does not apply:
+drawn on the glass, each across two character cells; one that does not apply
+is two dashes:
 
 | Icon | Terminal | Shown when |
 |---|---|---|
-| Battery | Klemme 30 | A supply voltage is being read from the bus. It blinks below 11.5 V (`VOLTAGE_LOW_DV`). |
-| Key | Klemme 15 | The emulator is sending ignition on. In listen-only: the car's own `0x3C0` says ignition on. |
-| Lamp | Klemme 58 | The dimming message `0x5F0` is on the bus, the emulator's or another unit's. |
-| Plug | — | A diagnostic tester is talking: a frame in `0x700`–`0x7FF` within the last 3 s. |
+| Car battery, with its two posts and + − | Klemme 30 | A supply voltage is being read from the bus. It blinks below 11.5 V (`VOLTAGE_LOW_DV`). |
+| Car key | Klemme 15 | The emulator is sending ignition on. In listen-only: the car's own `0x3C0` says ignition on. |
+| Instrument cluster, a dial with its needle | Klemme 58 | The dimming message `0x5F0` is on the bus, the emulator's or another unit's. |
+| Diagnostic socket, the 16-pin trapezoid | — | A diagnostic tester is talking: a frame in `0x700`–`0x7FF` within the last 3 s. |
+
+**The wave** at the end, a dot sending out arcs, shows that the traffic is
+alive. It keeps moving for as long as the emulator's frames go out and are
+acknowledged; in listen-only mode, for as long as frames come in. While frames
+are failing to send, usually because nothing on the bus acknowledges them, it
+is replaced by `!` and the number of failed frames; when nothing moves at all,
+by a dash. After a failure a `!` stays in the last cell, so that a problem
+that came and went is not missed; the totals are in `s` on the console.
+
+The display has room for eight self-drawn characters and the four icons take
+all eight, which is why the wave is made of ordinary characters.
 
 **The voltage** is read from the bus, not measured by the Arduino: one byte of
 a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and

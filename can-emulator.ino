@@ -121,18 +121,14 @@ static uint8_t  g_monNoise = 0;      // one bit per byte: changes by itself
 static uint8_t  g_monHot[8];         // display refreshes left to blink
 static bool     g_blink = false;
 #define MON_FIRST_ID_PAGE 2          // page 0 summary, page 1 who is awake
-#define ICON_BATTERY 1
-#define ICON_KEY     2
-#define ICON_LAMP    3
-#define ICON_PLUG    4
-// The radio-wave symbol in four stages, shown one after the other so that it
-// waves. Its first stage is user character 0, addressed as 8: the HD44780
-// repeats its eight user characters at codes 8..15, and 0 cannot sit in the
-// middle of a C string.
-#define ICON_WAVE_1  5
-#define ICON_WAVE_2  6
-#define ICON_WAVE_3  7
-#define ICON_WAVE_0  8
+// The four home-screen icons are two cells wide each, which takes all eight
+// user characters of the display: codes 1..7, and user character 0 addressed
+// as 8 (the HD44780 repeats them at 8..15, and 0 cannot sit in a C string).
+// An icon's right half is its left half's code plus one.
+#define ICON_BATTERY 1               // car battery
+#define ICON_KEY     3               // car key
+#define ICON_DASH    5               // instrument cluster
+#define ICON_OBD     7               // diagnostic socket
 static uint16_t g_fps      = 0;
 static uint16_t g_fpsCount = 0;
 static uint32_t g_nextFpsAt = 0;
@@ -628,8 +624,8 @@ static void serviceSerial() {
         Serial.print('|');
         for (uint8_t i = 0; i < 16; i++) {         // the four icons as letters
           char c = g_lcdShown[row][i];
-          // the icons as B K L T, the wave's four stages as 0..3
-          Serial.print(c >= ICON_BATTERY && c <= ICON_WAVE_0 ? "BKLT1230"[c - ICON_BATTERY] : c);
+          // the icons' halves as Bb Kk Dd Oo
+          Serial.print(c >= ICON_BATTERY && c <= ICON_OBD + 1 ? "BbKkDdOo"[c - ICON_BATTERY] : c);
         }
         Serial.println('|');
       }
@@ -723,17 +719,24 @@ static void lcdVoltage(char *dst) {
 }
 
 //   KL15 ON  X?12.3V    terminal state, X while set, supply voltage
-//   BKLT w              four icons, then the radio-wave symbol
-// The wave keeps waving for as long as the traffic is healthy: our frames go
-// out and are acknowledged or, in listen-only, frames keep coming in. It turns
-// into '!' while frames fail to go out and into a dash when nothing moves. The
-// number of failed frames appears at the end of the line once there are any.
+//   Bb Kk Dd Oo .))     four icons of two cells each, then the wave
+// The wave, a dot sending out arcs, keeps moving for as long as the traffic is
+// healthy: our frames go out and are acknowledged or, in listen-only, frames
+// keep coming in. While frames fail to go out it is replaced by '!' and the
+// number of failed frames, and by a dash when nothing moves. A '!' stays in
+// the last cell once any frame has failed. The wave is made of the display's
+// own characters because the icons use up every user character.
 // The icons, each a dash while it does not apply:
-//   B battery  Klemme 30: a supply voltage is being read; blinks when it is low
-//   K key      Klemme 15: ignition on, ours or in listen-only the car's
-//   L lamp     Klemme 58: the dimming message is on the bus
-//   T plug     a diagnostic tester is talking
+//   battery             Klemme 30: a supply voltage is being read; blinks when low
+//   car key             Klemme 15: ignition on, ours or in listen-only the car's
+//   instrument cluster  Klemme 58: the dimming message is on the bus
+//   diagnostic socket   a diagnostic tester is talking
 // A failed boot check takes the first line.
+static void lcdIcon(char *dst, uint8_t icon) {
+  dst[0] = (char)icon;
+  dst[1] = (char)(icon + 1);
+}
+
 static void lcdHome(char *top, char *bottom) {
   if (!g_selfTestOk)     lcdText(top, PSTR("CHECKSUM FAIL"));
   else if (!g_busOk)     lcdText(top, PSTR("MCP2515 FAILED"));
@@ -751,28 +754,36 @@ static void lcdHome(char *top, char *bottom) {
 #if ENABLE_MIB_MESSAGES
   if (g_state.kl_15 && g_busOk && !g_listenOnly) lamp = true;   // ours is going out
 #endif
-  lcdText(bottom, PSTR("----"));
+  lcdText(bottom, PSTR("-- -- -- --"));
 #if ENABLE_VOLTAGE
   if (recent(g_voltAt, VOLTAGE_STALE_MS)) {
-    bottom[0] = (g_voltDv < VOLTAGE_LOW_DV && g_blink) ? ' ' : (char)ICON_BATTERY;
+    if (g_voltDv < VOLTAGE_LOW_DV && g_blink) bottom[0] = bottom[1] = ' ';
+    else lcdIcon(bottom + 0, ICON_BATTERY);
   }
 #endif
-  if (ignition) bottom[1] = (char)ICON_KEY;
-  if (lamp)     bottom[2] = (char)ICON_LAMP;
-  if (recent(g_testerAt, TESTER_HOLD_MS)) bottom[3] = (char)ICON_PLUG;
+  if (ignition) lcdIcon(bottom + 3, ICON_KEY);
+  if (lamp)     lcdIcon(bottom + 6, ICON_DASH);
+  if (recent(g_testerAt, TESTER_HOLD_MS)) lcdIcon(bottom + 9, ICON_OBD);
 
-  // What moved since the last refresh decides what each pendulum does.
+  // What moved since the last refresh decides what the wave does: the dot,
+  // then one arc, then two, and two once more before it starts over.
   static uint32_t seenTxOk = 0, seenTxErr = 0, seenRx = 0;
-  static const char stages[4] = { ICON_WAVE_0, ICON_WAVE_1, ICON_WAVE_2, ICON_WAVE_3 };
   static uint8_t stage = 0;
   bool moving = g_listenOnly ? g_rxCount != seenRx : g_txOk != seenTxOk;
-  bottom[5] = g_txErr != seenTxErr ? '!' : moving ? stages[stage] : '-';
+  if (g_txErr != seenTxErr) {
+    bottom[12] = '!';
+    lcdNumber(bottom + 13, 3, g_txErr);     // 999 stands for "999 or more"
+  } else {
+    if (!moving) bottom[12] = '-';
+    else {
+      bottom[12] = '.';
+      if (stage >= 1) bottom[13] = ')';
+      if (stage >= 2) bottom[14] = ')';
+    }
+    if (g_txErr) bottom[15] = '!';          // there have been failures
+  }
   stage = (uint8_t)((stage + 1) & 3);
   seenTxOk = g_txOk; seenTxErr = g_txErr; seenRx = g_rxCount;
-  if (g_txErr) {
-    bottom[13] = 'e';
-    lcdNumber(bottom + 14, 2, g_txErr);     // 99 stands for "99 or more"
-  }
 }
 
 //   Dimming      3/9    the item and where it is in the menu
@@ -968,15 +979,17 @@ void setup() {
 
 #if ENABLE_LCD
   g_lcd.begin(16, 2);                          // ends with a clear: all spaces
+  // Left half, then right half, of each icon. On the glass there is a gap of
+  // one dot between the two cells.
   static const uint8_t icons[8][8] PROGMEM = {
-    { 0x0E, 0x1B, 0x11, 0x11, 0x11, 0x11, 0x1F, 0x00 },   // battery
-    { 0x06, 0x09, 0x09, 0x06, 0x04, 0x06, 0x04, 0x06 },   // key
-    { 0x0E, 0x11, 0x11, 0x11, 0x0E, 0x0E, 0x04, 0x00 },   // lamp
-    { 0x0A, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0x04 },   // plug
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x18, 0x04, 0x14 },   // wave: the source and one arc
-    { 0x00, 0x00, 0x00, 0x1C, 0x02, 0x19, 0x05, 0x15 },   // wave: two arcs
-    { 0x00, 0x1C, 0x02, 0x1D, 0x02, 0x19, 0x05, 0x15 },   // wave: three arcs
-    { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10 },   // wave: the source alone
+    { 0x0C, 0x1F, 0x10, 0x12, 0x17, 0x12, 0x1F, 0x00 },   // battery: post, and the plus
+    { 0x06, 0x1F, 0x01, 0x01, 0x1D, 0x01, 0x1F, 0x00 },   //          post, and the minus
+    { 0x00, 0x0E, 0x1B, 0x11, 0x1B, 0x0E, 0x00, 0x00 },   // key: the bow
+    { 0x00, 0x00, 0x00, 0x1F, 0x05, 0x00, 0x00, 0x00 },   //      the blade and its teeth
+    { 0x00, 0x07, 0x08, 0x10, 0x10, 0x11, 0x1F, 0x00 },   // cluster: a dial ...
+    { 0x00, 0x1C, 0x02, 0x09, 0x11, 0x01, 0x1F, 0x00 },   //          ... and its needle
+    { 0x1F, 0x15, 0x10, 0x17, 0x08, 0x0A, 0x07, 0x00 },   // diagnostic socket: two rows of
+    { 0x1F, 0x15, 0x01, 0x1D, 0x02, 0x0A, 0x1C, 0x00 },   //          pins in a trapezoid
   };
   for (uint8_t i = 0; i < 8; i++) {
     uint8_t rows[8];

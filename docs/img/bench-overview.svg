@@ -24,7 +24,7 @@
 <rect x="60" y="285" width="200" height="48" rx="4" fill="#2e7d4f" stroke="#1f5e3a" stroke-width="1.5"/>
 <rect x="70" y="293" width="180" height="32" rx="2" fill="#1a3a8a"/>
 <text x="160" y="307" font-size="9" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">KL15 ON    12.3V</text>
-<text x="160" y="320" font-size="9" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">■■■■ ◜          </text>
+<text x="160" y="320" font-size="9" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">■■ ■■ ■■ ■■ .)) </text>
 <path d="M260,309 H330 V260" stroke="#cfd4d8" stroke-width="6" fill="none"/>
 <!-- SPI + power, seven wires -->
 <rect x="470" y="188" width="30" height="34" fill="#cfd4d8"/>

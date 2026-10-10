@@ -344,9 +344,9 @@ static void reportJson() {
 }
 
 static void reportText() {
-  // The icons as B K L T and the wave's four stages as 0..3. Codes 8..15 are
-  // the user characters once more.
-  static const char icons[] = "0BKLT123";
+  // The icons' two halves as Bb Kk Dd Oo. Codes 8..15 are the user characters
+  // once more, so 8 is user character 0.
+  static const char icons[] = "oBbKkDdO";
   for (int r = 0; r < 2; r++) {
     putchar('|');
     for (int c = 0; c < 16; c++) {
