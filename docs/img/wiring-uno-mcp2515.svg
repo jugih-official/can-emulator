@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 1060" width="1180" height="1060" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 45 1100 890" width="1100" height="890" font-family="Helvetica, Arial, sans-serif">
 <title>Arduino Uno R3 to MCP2515 module and 16x2 LCD, pin to pin</title>
 <desc>Top view of the boards with every wire of the VW MQB Klemme 15 emulator: SPI, power, the ignition button and the 1602A display.</desc>
 <rect width="1180" height="1060" fill="#ffffff"/>
-<text x="60" y="30" font-size="17" font-weight="bold" fill="#222">Arduino Uno R3 ↔ MCP2515 CAN module, with the 16×2 LCD — every wire, top view, USB to the left</text>
 
 <!-- ================= Arduino Uno R3: 68.6 × 53.3 mm at 6.12 px/mm ================= -->
 <g id="uno">
@@ -57,7 +56,6 @@
 <text transform="translate(381.9,538) rotate(-90)">A0</text><text transform="translate(397.5,538) rotate(-90)">A1</text><text transform="translate(413,538) rotate(-90)">A2</text><text transform="translate(428.6,538) rotate(-90)">A3</text><text transform="translate(444.1,538) rotate(-90)">A4</text><text transform="translate(459.7,538) rotate(-90)">A5</text>
 </g>
 </g>
-<text x="60" y="228" font-size="11" fill="#444">Arduino Uno R3, to scale</text>
 
 <!-- ================= MCP2515 + TJA1050 module, header toward the Uno ================= -->
 <g id="mcp2515">
@@ -78,7 +76,6 @@
 <text x="928" y="413" font-size="8" font-family="monospace" fill="#ddd" text-anchor="middle">TJA1050</text>
 <rect x="805" y="435" width="60" height="26" rx="12" fill="#cfd4d8" stroke="#8a9298"/>
 <text x="835" y="452" font-size="10" font-family="monospace" fill="#222" text-anchor="middle">8.000</text>
-<text x="835" y="478" font-size="8.5" fill="#fff" text-anchor="middle">crystal: read it, 8.000 or 16.000</text>
 <!-- J1: the 120 ohm terminator, on when the cap is fitted -->
 <rect x="928" y="336" width="24" height="12" fill="#1a1a1a"/>
 <rect x="931" y="333" width="18" height="18" rx="2" fill="#444" stroke="#111"/>
@@ -94,9 +91,6 @@
 </g>
 <path d="M1011,386 H1060" stroke="#e6b422" stroke-width="3" fill="none"/><text x="1066" y="390" font-size="11" fill="#333">CAN H</text>
 <path d="M1011,418 H1060" stroke="#2e9e4f" stroke-width="3" fill="none"/><text x="1066" y="422" font-size="11" fill="#333">CAN L</text>
-<text x="1060" y="446" font-size="10" fill="#555">to the module under test,</text>
-<text x="1060" y="460" font-size="10" fill="#555">see the bench drawing</text>
-<text x="857" y="564" font-size="11" fill="#444" text-anchor="middle">MCP2515 + TJA1050 module (blue or black), header toward the Uno</text>
 
 <!-- ================= 1602A 16x2 LCD, 80 x 36 mm at the Uno's scale ================= -->
 <g id="lcd">
@@ -110,7 +104,6 @@
 <text x="492" y="856" font-size="24" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">tx 123456 err  0</text>
 <text x="492" y="910" font-size="10" font-weight="bold" fill="#fff" text-anchor="middle">1602A</text>
 </g>
-<text x="247" y="938" font-size="11" fill="#444">16×2 LCD (1602A), to scale. D0–D3 stay unconnected. The two rails are a breadboard's power rails, or any splice.</text>
 
 <!-- ================= wires: a white halo under each one so crossings read as over/under ================= -->
 <g fill="none" stroke-linejoin="round" stroke-linecap="round">
@@ -153,27 +146,4 @@
 <text x="184" y="676" font-size="9" fill="#333" text-anchor="end">(contrast)</text>
 <text x="548" y="654" font-size="9" font-weight="bold" fill="#222">GND rail</text>
 <text x="548" y="688" font-size="9" font-weight="bold" fill="#d62828">5 V rail</text>
-
-<!-- ================= legend ================= -->
-<g font-size="11" fill="#333">
-<path d="M760,620 h22" stroke="#e6b422" stroke-width="4"/><text x="790" y="624">SCK: D13 → SCK</text>
-<path d="M760,642 h22" stroke="#2e9e4f" stroke-width="4"/><text x="790" y="646">MISO: D12 → SO</text>
-<path d="M760,664 h22" stroke="#2f6fdc" stroke-width="4"/><text x="790" y="668">MOSI: D11 → SI</text>
-<path d="M760,686 h22" stroke="#8e44ad" stroke-width="4"/><text x="790" y="690">chip select: D10 → CS</text>
-<path d="M760,708 h22" stroke="#7f8c8d" stroke-width="4"/><text x="790" y="712">interrupt: INT → D2 (optional)</text>
-<path d="M960,620 h22" stroke="#d62828" stroke-width="4"/><text x="990" y="624">5V → rail → VCC, VDD, A</text>
-<path d="M960,642 h22" stroke="#222" stroke-width="4"/><text x="990" y="646">GND → rail → GND, VSS, RW, K</text>
-<path d="M960,664 h22" stroke="#8d5524" stroke-width="4"/><text x="990" y="668">button: D4 → switch → GND</text>
-<path d="M960,686 h22" stroke="#e67e22" stroke-width="4"/><text x="990" y="690">LCD: A0–A5 → RS, E, D4–D7</text>
-<path d="M960,708 h22" stroke="#16a085" stroke-width="4"/><text x="990" y="712">contrast: trimmer wiper → V0</text>
-</g>
-
-<!-- ================= notes ================= -->
-<g font-size="11" fill="#333">
-<text x="60" y="968">Pin names as printed on the boards. D11, D12 and D13 are the Uno's hardware SPI and cannot move; D10, D2 and the six LCD pins are set in config.h.</text>
-<text x="60" y="986">LCD: VSS, RW and K → GND · VDD → 5 V · A → 5 V through 220 Ω (backlight) · V0 → wiper of a 10 kΩ trimmer whose ends sit on 5 V and GND.</text>
-<text x="60" y="1004">No trimmer at hand: a fixed 1–2 kΩ from V0 to GND is readable on most of these displays. Blank or one row of boxes = contrast.</text>
-<text x="60" y="1022">Button: D4 → switch → GND, no resistor (internal pull-up). D13 is also the Uno's L LED and flickers with SPI traffic. INT → D2 is optional.</text>
-<text x="60" y="1040">Module: read the crystal and set MCP_CRYSTAL to match (8.000 → MCP_8MHZ, the default; 16.000 → MCP_16MHZ). J1 on = its 120 Ω terminator is on the bus.</text>
-</g>
 </svg>

@@ -1,9 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 640" width="1180" height="640" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 100 1100 460" width="1100" height="460" font-family="Helvetica, Arial, sans-serif">
 <title>The bench: PC, Uno, MCP2515, module under test and the 12 V supply</title>
 <desc>What is a wire and what comes over CAN when a VW MQB module runs on the bench with the Klemme 15 emulator.</desc>
 <rect width="1180" height="640" fill="#ffffff"/>
-<text x="60" y="30" font-size="17" font-weight="bold" fill="#222">The bench — what is a wire and what comes over CAN</text>
 
 <!-- PC -->
 <rect x="60" y="150" width="150" height="100" rx="8" fill="#eef1f4" stroke="#8a9298" stroke-width="1.5"/>
@@ -19,7 +18,6 @@
 <rect x="330" y="154" width="130" height="8" fill="#1a1a1a"/>
 <rect x="345" y="248" width="115" height="8" fill="#1a1a1a"/>
 <text x="395" y="190" font-size="14" font-style="italic" font-weight="bold" fill="#fff" text-anchor="middle">Arduino Uno</text>
-<circle cx="350" cy="222" r="6" fill="#bbb" stroke="#333"/><text x="361" y="226" font-size="9" fill="#fff">button = Kl. 15 on / off</text>
 <circle cx="385" cy="252" r="3.5" fill="#d9b545"/>
 <text x="392" y="275" font-size="9" fill="#333">GND pin</text>
 <!-- the 16x2 LCD on A0..A5 -->
@@ -28,7 +26,6 @@
 <text x="160" y="307" font-size="9" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">KL15 ON   X  50</text>
 <text x="160" y="320" font-size="9" font-family="monospace" fill="#cfe3ff" text-anchor="middle" xml:space="preserve">tx 123456 err  0</text>
 <path d="M260,309 H330 V260" stroke="#cfd4d8" stroke-width="6" fill="none"/>
-<text x="160" y="347" font-size="10" fill="#444" text-anchor="middle">16×2 LCD on A0–A5: state and counters</text>
 <!-- SPI + power, seven wires -->
 <rect x="470" y="188" width="30" height="34" fill="#cfd4d8"/>
 
@@ -40,24 +37,15 @@
 <rect x="640" y="192" width="22" height="40" fill="#2e8b57" stroke="#1f5e3a"/>
 <text x="636" y="207" font-size="8" font-weight="bold" fill="#fff" text-anchor="end">H</text>
 <text x="636" y="227" font-size="8" font-weight="bold" fill="#fff" text-anchor="end">L</text>
-<text x="575" y="296" font-size="10" fill="#444" text-anchor="middle">7 wires between these two: see the pin-to-pin drawing</text>
 
 <!-- CAN pair -->
 <path d="M662,204 H760 V240 H860" stroke="#e6b422" stroke-width="3" fill="none"/>
 <path d="M662,224 H745 V262 H860" stroke="#2e9e4f" stroke-width="3" fill="none"/>
-<text x="760" y="176" font-size="10" fill="#555" text-anchor="middle">CAN H / CAN L: twisted pair,</text>
-<text x="760" y="190" font-size="10" fill="#555" text-anchor="middle">of the bus the module sits on</text>
 <!-- the optional far-end terminator -->
-<rect x="825" y="243" width="10" height="16" fill="#fff" stroke="#999" stroke-dasharray="2,2"/>
-<text x="800" y="292" font-size="9" fill="#777" text-anchor="middle">optional 2nd 120 Ω,</text>
-<text x="800" y="304" font-size="9" fill="#777" text-anchor="middle">see the box below</text>
 
 <!-- module under test -->
 <rect x="860" y="120" width="260" height="190" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
 <text x="990" y="150" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">Module under test</text>
-<text x="990" y="166" font-size="10" fill="#555" text-anchor="middle">MIB head unit, cluster, any MQB module</text>
-<text x="990" y="206" font-size="10" fill="#333" text-anchor="middle">Kl. 15 has no pin to feed here:</text>
-<text x="990" y="220" font-size="10" fill="#333" text-anchor="middle">it arrives as CAN frame 0x3C0 from the Uno</text>
 <rect x="856" y="236" width="8" height="8" fill="#d9b545"/><text x="872" y="244" font-size="9" fill="#333">CAN H</text>
 <rect x="856" y="258" width="8" height="8" fill="#d9b545"/><text x="872" y="266" font-size="9" fill="#333">CAN L</text>
 <rect x="896" y="306" width="8" height="8" fill="#d9b545"/><text x="900" y="300" font-size="9" fill="#333" text-anchor="middle">Kl. 31</text>
@@ -68,8 +56,6 @@
 <!-- PSU -->
 <rect x="300" y="420" width="230" height="120" rx="6" fill="#eef1f4" stroke="#8a9298" stroke-width="1.5"/>
 <text x="415" y="470" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">Bench PSU</text>
-<text x="415" y="489" font-size="10" fill="#555" text-anchor="middle">12–14 V, 10 A or more: a MIB pulls 5 A and up</text>
-<text x="415" y="505" font-size="10" fill="#555" text-anchor="middle">(on a 2 A wall wart it reboots in a loop)</text>
 <circle cx="470" cy="420" r="9" fill="#222"/><text x="470" y="424" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">−</text>
 <circle cx="510" cy="420" r="9" fill="#d62828"/><text x="510" y="424" font-size="12" font-weight="bold" fill="#fff" text-anchor="middle">+</text>
 
@@ -80,19 +66,4 @@
 <path d="M470,411 V370 H900 V314" stroke="#222" stroke-width="3" fill="none" stroke-linejoin="round"/>
 <path d="M470,370 H385 V256" stroke="#222" stroke-width="3" fill="none" stroke-linejoin="round"/>
 <circle cx="470" cy="370" r="3.5" fill="#222"/>
-<text x="60" y="364" font-size="10" fill="#333">PSU − also goes to the Arduino's GND:</text>
-<text x="60" y="378" font-size="10" fill="#333">a common ground, not optional</text>
-
-<!-- the box -->
-<rect x="600" y="430" width="520" height="190" rx="6" fill="#f7f8fa" stroke="#d5dbe3"/>
-<g font-size="11" fill="#333">
-<text x="620" y="456" font-size="12" font-weight="bold" fill="#222">Three terminals, two kinds</text>
-<text x="620" y="480"><tspan font-weight="bold">Kl. 30</tspan>, permanent +12 V: a real wire from the PSU, through the fuse.</text>
-<text x="620" y="500"><tspan font-weight="bold">Kl. 31</tspan>, ground: PSU − to the module and to the Arduino.</text>
-<text x="620" y="520"><tspan font-weight="bold">Kl. 15</tspan>, ignition: no wire. The Uno broadcasts Klemmen_Status_01 (0x3C0) every</text>
-<text x="620" y="536">100 ms; press the button and every module on the bus sees the ignition come on.</text>
-<text x="620" y="562"><tspan font-weight="bold">Termination:</tspan> two 120 Ω, one per end. J1 on the module is one. Add the other at the</text>
-<text x="620" y="578">far end only if nothing there terminates: about 60 Ω across CAN H–L, power off, is right.</text>
-<text x="620" y="604"><tspan font-weight="bold">Never on a complete car:</tspan> its gateway sends 0x3C0 too. There, listen-only mode (‘l’) only.</text>
-</g>
 </svg>
