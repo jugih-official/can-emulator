@@ -288,6 +288,7 @@ new AddLayerCommand(new CadLayer("Boards", "#3fa7ff")).Execute(drawing);
 new AddEntityCommand(baseSolid).Execute(drawing);
 new AddEntityCommand(lidSolid).Execute(drawing);
 foreach (var board in boards) new AddEntityCommand(board).Execute(drawing);
+var drawingsWritten = 0;
 WriteDrawing("can-emulator-case", drawing, [baseSolid, lidSolid, .. boards]);
 
 // A drawing as HelCAD saves it, except that it comes out the same every time:
@@ -296,7 +297,6 @@ WriteDrawing("can-emulator-case", drawing, [baseSolid, lidSolid, .. boards]);
 // The objects are put in the order given and numbered from one, each drawing
 // in a series of its own so that two of them can be brought into one. Then
 // the file is read back, as HelCAD would read it.
-var drawingsWritten = 0;
 void WriteDrawing(string name, CadDocument document, IReadOnlyList<CadEntity> order)
 {
     var series = 0x8000 + ++drawingsWritten;
