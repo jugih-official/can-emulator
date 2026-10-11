@@ -14,6 +14,7 @@
 | 1 | Gateway J533 with its T20e connector or pigtail | The permanent centre of the bench: see [The bench with a gateway](#the-bench-with-a-gateway). |
 | 1 | OBD-II socket (16-pin, female) | For the diagnostic tester. |
 | 1 | Bench PSU, 12 V, ≥10 A | For Klemme 30 to the module under test. A MIB unit can pull 5 A+. |
+| 1 | 12 V → 5 V converter | Only for a head unit's USB module, which wants 5 V beside the 12 V. |
 | — | Jumper wires, 0.5 mm² wire for the 12 V side | |
 | 1 | Inline fuse, 10–15 A | On the 12 V feed. Not optional. |
 
@@ -134,6 +135,7 @@ it:
 | Emulator, CAN H / CAN L | 15 / 5 (convenience) | J1 on the MCP2515 module fitted |
 | OBD socket pin 6 / pin 14 | 19 / 9 (diagnostic) | Socket pin 16 to +12 V, pins 4 and 5 to ground |
 | Radio or head unit | 20 / 10 (infotainment) | |
+| USB module of the head unit | none | On the head unit's USB data cable. +12 V, +5 V and ground, see below |
 | Other control units | 16 / 6 powertrain, 17 / 7 extended, 18 / 8 running gear | On the bus they use in the car |
 
 Each unit under test also needs its own terminal 30 and 31 from the supply.
@@ -142,6 +144,12 @@ Each unit under test also needs its own terminal 30 and 31 from the supply.
 pins 4 and 5 ground. On VW cars pin 1 carries switched terminal 15, and some
 interfaces read the ignition from it: if a tester insists the ignition is off
 while ODIS shows it on, put +12 V on pin 1 as well.
+
+**USB module.** The head unit's USB module is on no CAN bus: it hangs on the
+head unit by its USB data cable. It wants three supply wires, +12 V, +5 V and
+ground. The 12 V and the ground come off the fused supply like every other
+unit's, and the 5 V from a 12 V → 5 V converter fed from the same two rails.
+Which pin of the module takes which is not written down here yet.
 
 **Terminal 15 on pin 14.** ODIS shows two values in the gateway: *Terminal 15
 status via CAN* (`$02B2`) follows the emulator, on and off. *Terminal 15

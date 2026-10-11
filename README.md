@@ -34,6 +34,7 @@ emulator supplies that ignition on the gateway's convenience bus.
 | Klemme 15 emulator | Convenience bus, gateway pins 15 (high) / 5 (low) | Ignition on and off over CAN |
 | OBD socket | Diagnostic bus, pins 19 (high) / 9 (low) | Where ODIS, VCDS or a flasher plugs in |
 | Control unit under test | The bus it sits on in the car | Reached from the OBD socket through the gateway |
+| USB module | The head unit, by its USB data cable | Not on CAN. Needs +12 V, ground and +5 V from a 12 V → 5 V converter |
 | 12 V supply | Gateway pins 1–2 (+), 11–12 (−), and every unit | Klemme 30 and 31 cannot be emulated |
 
 The emulator remembers the ignition state across resets and power cuts, so a

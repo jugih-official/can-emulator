@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 140 1200 400" width="1200" height="400" font-family="Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 140 1200 520" width="1200" height="520" font-family="Helvetica, Arial, sans-serif">
 <title>The bench around a J533 gateway</title>
-<desc>Wiring of the bench: the Klemme 15 emulator on the convenience bus of a J533 gateway, the OBD socket on its diagnostic bus, a radio on the infotainment bus, and the 12 V supply.</desc>
-<rect x="0" y="140" width="1200" height="400" fill="#ffffff"/>
+<desc>Wiring of the bench: the Klemme 15 emulator on the convenience bus of a J533 gateway, the OBD socket on its diagnostic bus, a radio on the infotainment bus with its USB module on a data cable, the 12 V to 5 V converter that module needs, and the 12 V supply.</desc>
+<rect x="0" y="140" width="1200" height="520" fill="#ffffff"/>
 
 <rect x="455" y="180" width="290" height="190" rx="6" fill="#2f3a44" stroke="#1b232a" stroke-width="1.5"/>
 <text x="600" y="270" font-size="13" font-weight="bold" fill="#fff" text-anchor="middle">Gateway J533</text>
@@ -48,25 +48,40 @@
 <text x="1005.0" y="334" font-size="11" fill="#333" text-anchor="middle">CAN H → 20 · CAN L → 10</text>
 <path d="M749,315 H880" stroke="#e6b422" stroke-width="3" fill="none"/>
 <path d="M749,329 H880" stroke="#2e9e4f" stroke-width="3" fill="none"/>
-<path d="M230,450 H250 M290,450 H1160" stroke="#d62828" stroke-width="3.5" fill="none"/>
-<rect x="250" y="443" width="40" height="14" fill="#fff" stroke="#d62828" stroke-width="2"/>
-<text x="270" y="437" font-size="10" fill="#333" text-anchor="middle">fuse</text>
-<path d="M230,490 H1180" stroke="#222" stroke-width="3.5" fill="none"/>
-<text x="340" y="442" font-size="10" fill="#d62828" font-weight="bold">+12 V (Kl. 30)</text>
-<text x="340" y="506" font-size="10" fill="#222" font-weight="bold">ground (Kl. 31)</text>
-<rect x="40" y="420" width="190" height="100" rx="6" fill="#eef1f4" stroke="#8a9298" stroke-width="1.5"/>
-<text x="135" y="468" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">Bench PSU</text>
-<text x="135" y="486" font-size="11" fill="#333" text-anchor="middle">12 V</text>
-<path d="M520,374 V450" stroke="#d62828" stroke-width="3" fill="none"/><circle cx="520" cy="450" r="4" fill="#d62828"/>
-<path d="M600,374 V490" stroke="#222" stroke-width="3" fill="none"/><circle cx="600" cy="490" r="4" fill="#222"/>
-<path d="M680,374 V450" stroke="#d62828" stroke-width="3" fill="none" stroke-dasharray="6,4"/><circle cx="680" cy="450" r="4" fill="#d62828"/>
+<path d="M230,570 H250 M290,570 H1160" stroke="#d62828" stroke-width="3.5" fill="none"/>
+<rect x="250" y="563" width="40" height="14" fill="#fff" stroke="#d62828" stroke-width="2"/>
+<text x="270" y="557" font-size="10" fill="#333" text-anchor="middle">fuse</text>
+<path d="M230,610 H1180" stroke="#222" stroke-width="3.5" fill="none"/>
+<text x="340" y="562" font-size="10" fill="#d62828" font-weight="bold">+12 V (Kl. 30)</text>
+<text x="340" y="626" font-size="10" fill="#222" font-weight="bold">ground (Kl. 31)</text>
+<rect x="40" y="540" width="190" height="100" rx="6" fill="#eef1f4" stroke="#8a9298" stroke-width="1.5"/>
+<text x="135" y="588" font-size="13" font-weight="bold" fill="#333" text-anchor="middle">Bench PSU</text>
+<text x="135" y="606" font-size="11" fill="#333" text-anchor="middle">12 V</text>
+<path d="M520,374 V570" stroke="#d62828" stroke-width="3" fill="none"/><circle cx="520" cy="570" r="4" fill="#d62828"/>
+<path d="M600,374 V610" stroke="#222" stroke-width="3" fill="none"/><circle cx="600" cy="610" r="4" fill="#222"/>
+<path d="M680,374 V570" stroke="#d62828" stroke-width="3" fill="none" stroke-dasharray="6,4"/><circle cx="680" cy="570" r="4" fill="#d62828"/>
 <text x="690" y="404" font-size="10" fill="#555">optional</text>
-<path d="M310,315 V490" stroke="#222" stroke-width="3" fill="none"/><circle cx="310" cy="490" r="4" fill="#222"/>
+<path d="M310,315 V610" stroke="#222" stroke-width="3" fill="none"/><circle cx="310" cy="610" r="4" fill="#222"/>
 <text x="302" y="335" font-size="10" fill="#333" text-anchor="end">GND</text>
-<path d="M1160,450 V220" stroke="#d62828" stroke-width="3" fill="none"/>
-<path d="M1180,490 V245" stroke="#222" stroke-width="3" fill="none"/>
+<path d="M1160,570 V220" stroke="#d62828" stroke-width="3" fill="none"/>
+<path d="M1180,610 V245" stroke="#222" stroke-width="3" fill="none"/>
 <path d="M1130,220 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="220" r="3.5" fill="#d62828"/>
 <path d="M1130,245 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="245" r="3.5" fill="#222"/>
 <path d="M1130,320 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="320" r="3.5" fill="#d62828"/>
 <path d="M1130,345 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="345" r="3.5" fill="#222"/>
+<rect x="880" y="420" width="250" height="80" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
+<text x="1005.0" y="444" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">USB module</text>
+<text x="1005.0" y="464" font-size="11" fill="#333" text-anchor="middle">+12 V · +5 V · ground</text>
+<text x="1005.0" y="479" font-size="11" fill="#333" text-anchor="middle">no CAN</text>
+<path d="M1005,370 V420" stroke="#2b5fb3" stroke-width="5" fill="none"/>
+<text x="1017" y="399" font-size="10" font-weight="bold" fill="#2b5fb3">USB data cable</text>
+<path d="M1130,450 H1160" stroke="#d62828" stroke-width="3"/><circle cx="1160" cy="450" r="3.5" fill="#d62828"/>
+<path d="M1130,475 H1180" stroke="#222" stroke-width="3"/><circle cx="1180" cy="475" r="3.5" fill="#222"/>
+<rect x="700" y="425" width="130" height="70" rx="6" fill="#dfe3e8" stroke="#7a848c" stroke-width="1.5"/>
+<text x="765.0" y="453" font-size="13" font-weight="bold" fill="#222" text-anchor="middle">12 V → 5 V</text>
+<text x="765.0" y="471" font-size="11" fill="#333" text-anchor="middle">voltage converter</text>
+<path d="M830,460 H880" stroke="#e07b00" stroke-width="3" fill="none"/>
+<text x="855" y="453" font-size="10" font-weight="bold" fill="#e07b00" text-anchor="middle">+5 V</text>
+<path d="M735,495 V570" stroke="#d62828" stroke-width="3" fill="none"/><circle cx="735" cy="570" r="4" fill="#d62828"/>
+<path d="M795,495 V610" stroke="#222" stroke-width="3" fill="none"/><circle cx="795" cy="610" r="4" fill="#222"/>
 </svg>
