@@ -188,13 +188,14 @@ Not checked yet:
 
   The gateway has a second voltage, *Voltage terminal 30* (`$0286`), which
   read 12.6 V beside the 12.810 V above. It is shown to a tenth of a volt and
-  agrees with what the tester's interface measures at the OBD socket, so it is
-  taken here as the gateway's own measurement at its supply pins. `$2A07`
-  belongs to the battery monitoring, which has no battery sensor to talk to on
-  this bench: its neighbours read 15.0 V and "Initialization". The bench
-  supply's own display said 12.49 V. Terminal 30 is the value the display is
-  after, and no byte on the convenience bus is 126, which 12.6 V would be at
-  0.1 V per bit.
+  agrees with what the tester's interface measures at the OBD socket, and a
+  multimeter on the bench read 12.63 V: it is the true one. `$2A07` belongs to
+  the battery monitoring, which has no battery sensor to talk to on this
+  bench: its neighbours read 15.0 V and "Initialization", and it read 0.18 V
+  high. The bench supply's own display said 12.49 V. Terminal 30 is the value
+  the display is after, and nothing on the convenience bus gives it: no byte
+  is 126, which 12.6 V would be at 0.1 V per bit, and byte 5 of `0x663` as
+  0.05 V per bit plus 5 V says 12.75 V, two steps too many.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.
