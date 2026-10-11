@@ -159,6 +159,9 @@ Checked on this bench:
 - The tester's "tester present" (`0x700`, every 2 s) appears on the convenience
   bus, so the gateway routes diagnostic requests across.
 - The gateway sends `0x6B2` every 1000 ms.
+- After a reset the emulator comes back with the ignition it had: the board
+  reports `restored: Klemme 15 ON` and the gateway acknowledges again at once
+  (2026-10-11, after uploads and after the serial port was opened).
 - The gateway acknowledges `VIN_01` (`0x6B4`) sent by the emulator on the
   convenience bus, with no transmit errors, and sends no `0x6B4` there itself,
   before or while the emulator does (2026-10-11, a made-up VIN,
