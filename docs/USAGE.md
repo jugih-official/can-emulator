@@ -61,7 +61,7 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 15888 bytes (49%) of program storage space. Maximum is 32256 bytes.
+Sketch uses 15898 bytes (49%) of program storage space. Maximum is 32256 bytes.
 Global variables use 801 bytes (39%) of dynamic memory, leaving 1247 bytes...
 ```
 
@@ -272,12 +272,14 @@ counts frames the emulator could not send since power-up; a reset clears it.
 
 **The voltage** is read from the bus, not measured by the Arduino: one byte of
 a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and
-`VOLTAGE_MV_PER_BIT`. The default, byte 0 of `0x663` at 0.1 V per bit, is a
-candidate and has not been confirmed, which is why the value carries a `?`.
-To confirm it, turn the bench supply up and down and watch the display follow;
-then set `VOLTAGE_VERIFIED 1` and the `?` goes. If it does not follow, find the
-right byte with the learning view, changing the supply voltage as the thing
-you do. `--.-V` means the frame is not on the bus.
+`VOLTAGE_MV_PER_BIT`. The default, byte 5 of `0x663` at 0.05 V per bit plus
+5 V, agreed with the gateway's own measured value at the one voltage it has
+been compared at, and has not been seen to follow the supply: that is why the
+value carries a `?`. To confirm it, turn the bench supply up and down and
+watch the display follow; then set `VOLTAGE_VERIFIED 1` and the `?` goes. If
+it does not follow, find the right byte with the learning view, changing the
+supply voltage as the thing you do. `--.-V` means the frame is not on the bus.
+The display shows tenths of a volt; the byte itself steps by 0.05 V.
 
 In listen-only mode the first line reads `LISTEN`. `CHECKSUM FAIL` or
 `MCP2515 FAILED` takes the first line when boot found that problem. The glass
@@ -417,8 +419,8 @@ All tunables live in [`config.h`](../config.h).
 | `ENABLE_STATUS_LED` | 0 | LED on `STATUS_LED_PIN` showing Klemme 15 |
 | `SNIFFER_MAX_IDS` | 24 | RAM cost is 12 bytes each |
 | `ENABLE_VOLTAGE` | 1 | Show the supply voltage read from the bus |
-| `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` | `0x663`, 0 | Where the voltage is read. A candidate until confirmed. |
-| `VOLTAGE_MV_PER_BIT`, `VOLTAGE_OFFSET_MV` | 100, 0 | Its scaling |
+| `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` | `0x663`, 5 | Where the voltage is read. A candidate until confirmed. |
+| `VOLTAGE_MV_PER_BIT`, `VOLTAGE_OFFSET_MV` | 50, 5000 | Its scaling: 0.05 V per bit plus 5 V |
 | `VOLTAGE_VERIFIED` | 0 | 1 removes the `?` in front of the value |
 | `VOLTAGE_LOW_DV` | 115 | Below this, in tenths of a volt, the battery icon blinks |
 | `TESTER_HOLD_MS` | 3000 | How long a diagnostic frame keeps the plug icon on |
@@ -456,7 +458,7 @@ it:
 | Diagnostic tester | `0x700` every 2 s |
 | Car's own ignition | Another sender of `0x3C0` and `0x5F0`, for trying listen-only mode |
 | MCP2515 has 5 V | Off is the module's supply wire pulled out |
-| Supply voltage | Byte 0 of `0x663`, where the sketch reads the voltage |
+| Supply voltage | Byte 5 of `0x663`, where the sketch reads the voltage |
 | Frames on the bus | Every frame the sketch sent and every frame the bench sends it, each with what it is, a count and its latest payload |
 
 Things to try: switch everything on the bus off and watch `e` count up; pull

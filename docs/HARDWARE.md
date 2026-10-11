@@ -168,13 +168,16 @@ Checked on this bench:
 
 Not checked yet:
 
-- The supply voltage on the display. It is read from byte 0 of `0x663`, which
-  has held `0x78` (120, shown as 12.0 V) in every capture on this bench. On
-  2026-10-11 the supply stood at 12.49 V and the display still said 12.0 V:
-  either that byte is not the supply voltage, or the gateway reads half a volt
-  low. Byte 5 of the same frame flickers between `9A` and `9B`, the way a
-  measured value does, and nothing else on the convenience bus moves. It is
-  settled only when the supply is turned and one of the two follows.
+- The supply voltage on the display. It is read from byte 5 of `0x663` at
+  0.05 V per bit plus 5 V. On 2026-10-11 that byte flickered between `9A` and
+  `9B`, 12.70 and 12.75 V, while ODIS showed the gateway's measured value
+  *Battery voltage* (`$2A07`) as 12.720 V. That is agreement at one voltage,
+  to within one step; it is settled when the supply is turned and the byte
+  follows. Two things to keep in mind until then: the same ODIS page showed a
+  power value of 155 A, and `9B` is 155, though a fixed value would not
+  flicker; and the bench supply's own display said 12.49 V that day, a quarter
+  of a volt under what the gateway measures. Byte 0 of the frame, the first
+  guess, is a constant `0x78`.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.

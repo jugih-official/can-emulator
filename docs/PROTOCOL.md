@@ -259,7 +259,7 @@ Use the firmware's sniffer (`p`) against a real car to confirm, and adjust
 some receivers flag a sender as faulty if a cyclic message drifts more than
 roughly ±10 % from its nominal period.
 
-## Supply voltage: no known broadcast
+## Supply voltage: no documented broadcast
 
 The emulator shows the supply voltage from one byte of a CAN frame, and which
 frame that should be on MQB is not publicly documented. What a search of the
@@ -279,10 +279,19 @@ public sources turned up:
   next to a tester that may be flashing.
 - **Volkswagen's own way** is a UDS measured value read from a control unit
   with service `22`. ODIS shows the identifier of each measured value in its
-  RDID column, so the gateway's terminal 30 voltage can be looked up there.
+  RDID column: in the gateway on the bench, *Battery voltage* is `$2A07`
+  (12.720 V when it was read), next to *Specified generator voltage* `$2A00`
+  and *Battery voltage at rest* `$2A10`, which both read 15.0 V there.
 
-So the default in `config.h`, byte 0 of `0x663` at 0.1 V per bit, remains a
-guess from one captured payload until it has been seen to follow the supply.
+That measured value is what the broadcast was compared against. The gateway's
+`0x663`, every 100 ms, held `78 28 20 0E 1F 9A 2C 00` and
+`78 28 20 0E 1F 9B 2C 00` in turn: byte 5 flickering between 154 and 155. With
+the PQ scaling above, 0.05 V per bit plus 5 V, those are 12.70 and 12.75 V,
+one step either side of the 12.720 V the gateway reported. Hence the default
+in `config.h`: byte 5 of `0x663`, 50 mV per bit, 5000 mV offset. It is one
+point on a line, so it stays marked unverified until the value has been seen
+to follow the supply. Byte 0, the earlier guess at 0.1 V per bit, is a
+constant `0x78`.
 
 ## Adding another message
 

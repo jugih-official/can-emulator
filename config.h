@@ -54,16 +54,19 @@
 // --- What is read from the bus -------------------------------------------------
 // Supply voltage, shown permanently on the home screen. It is taken from one
 // byte of a frame some unit broadcasts:  volts = (byte * MV_PER_BIT + OFFSET) / 1000.
-// The default is a CANDIDATE, not a confirmed signal: a J533 gateway sent
-// 0x663 with 0x78 (120) in byte 0 in one bench capture, the supply voltage at
-// that moment was not noted, and no public DBC names that frame. Until it has been checked -- turn the supply up and
-// down and watch the value follow -- leave VOLTAGE_VERIFIED at 0 and the
-// display marks the value with '?'.
+// The default is a CANDIDATE, not a confirmed signal: byte 5 of 0x663, which a
+// J533 gateway sends every 100 ms, at 0.05 V per bit plus 5 V. No public DBC
+// names that frame; the scaling is the one the older PQ platform uses for its
+// battery voltage. On the bench the byte flickered between 0x9A and 0x9B, which
+// is 12.70 and 12.75 V, while the gateway's own measured value read 12.720 V.
+// That is one voltage. Until the value has been seen to follow the supply up
+// and down, leave VOLTAGE_VERIFIED at 0 and the display marks it with '?'.
+// (Byte 0 of the same frame, the first guess, is a constant 0x78.)
 #define ENABLE_VOLTAGE        1
 #define VOLTAGE_CAN_ID        0x663
-#define VOLTAGE_BYTE          0
-#define VOLTAGE_MV_PER_BIT    100
-#define VOLTAGE_OFFSET_MV     0
+#define VOLTAGE_BYTE          5
+#define VOLTAGE_MV_PER_BIT    50
+#define VOLTAGE_OFFSET_MV     5000
 #define VOLTAGE_VERIFIED      0
 #define VOLTAGE_STALE_MS      3000    // no frame for this long: "--.-V"
 #define VOLTAGE_LOW_DV        115     // below 11.5 V the battery icon blinks

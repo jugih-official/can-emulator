@@ -258,7 +258,10 @@ static void busTick() {
     f.ext = p.ext;
     f.dlc = p.id == 0x3C0 ? 4 : 8;
     memcpy(f.data, p.data, 8);
-    if (p.id == 0x663) f.data[0] = g_voltDv;
+    if (p.id == VOLTAGE_CAN_ID) {                        // the slider, coded the way config.h reads it
+      long code = ((long)g_voltDv * 100 - VOLTAGE_OFFSET_MV) / VOLTAGE_MV_PER_BIT;
+      f.data[VOLTAGE_BYTE] = (uint8_t)(code < 0 ? 0 : code > 255 ? 255 : code);
+    }
     if (p.id == 0x5AC) f.data[1] = p.counter;            // changes by itself
     if (p.id == 0x3C0) f.data[1] = p.counter & 0x0F;
     if (p.id == 0x3E5) { f.data[0] = p.counter & 0x0F; f.data[2] = g_knob; }
