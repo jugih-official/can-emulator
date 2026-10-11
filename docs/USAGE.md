@@ -273,13 +273,17 @@ counts frames the emulator could not send since power-up; a reset clears it.
 **The voltage** is read from the bus, not measured by the Arduino: one byte of
 a frame that some unit broadcasts, set by `VOLTAGE_CAN_ID`, `VOLTAGE_BYTE` and
 `VOLTAGE_MV_PER_BIT`. The default, byte 5 of `0x663` at 0.05 V per bit plus
-5 V, agreed with the gateway's own measured value at the one voltage it has
-been compared at, and has not been seen to follow the supply: that is why the
-value carries a `?`. To confirm it, turn the bench supply up and down and
-watch the display follow; then set `VOLTAGE_VERIFIED 1` and the `?` goes. If
-it does not follow, find the right byte with the learning view, changing the
-supply voltage as the thing you do. `--.-V` means the frame is not on the bus.
-The display shows tenths of a volt; the byte itself steps by 0.05 V.
+5 V, is taken to be the gateway's battery-monitoring voltage, the one ODIS
+shows as *Battery voltage* (`$2A07`). **It is not a measurement of the
+supply.** On the bench it stayed within a step or two of that ODIS value and
+read 0.12 V above what a multimeter showed, and it has not been seen to follow
+the supply: that is why the value carries a `?`. It is on the display because
+nothing better is on the bus; [HARDWARE.md](HARDWARE.md#what-has-been-checked-and-what-has-not)
+has the readings. To confirm it, turn the bench supply up and down and watch
+the display follow; then set `VOLTAGE_VERIFIED 1` and the `?` goes. If it does
+not follow, find the right byte with the learning view, changing the supply
+voltage as the thing you do. `--.-V` means the frame is not on the bus. The
+display shows tenths of a volt; the byte itself steps by 0.05 V.
 
 In listen-only mode the first line reads `LISTEN`. `CHECKSUM FAIL` or
 `MCP2515 FAILED` takes the first line when boot found that problem. The glass

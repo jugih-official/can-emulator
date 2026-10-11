@@ -195,7 +195,9 @@ Not checked yet:
   high. The bench supply's own display said 12.49 V. Terminal 30 is the value
   the display is after, and nothing on the convenience bus gives it: no byte
   is 126, which 12.6 V would be at 0.1 V per bit, and byte 5 of `0x663` as
-  0.05 V per bit plus 5 V says 12.75 V, two steps too many.
+  0.05 V per bit plus 5 V says 12.75 V, two steps too many. The display shows
+  that byte all the same, with its `?`: the owner chose the supposed battery
+  voltage over an empty field.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.
