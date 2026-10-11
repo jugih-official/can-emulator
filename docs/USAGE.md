@@ -339,7 +339,8 @@ V-                        stops it
   VIN off. A VIN left half typed is given up after 5 s (`VIN_ENTRY_MS`): until
   then the keys go into the VIN, not to the commands.
 - This does not give a gateway a VIN. A gateway is the sender of this message,
-  not a listener; its own VIN is written by a tester. And the four
+  not a listener; its own VIN is written by a tester. Nor does a tester learn
+  the VIN from it: on the bench ODIS did not pick it up. And the four
   component-protection bytes go out as zero, see
   [PROTOCOL.md](PROTOCOL.md#vin_01--id-0x6b4-1716).
 - With a gateway on the bus that sends `0x6B4` itself, the emulator's stands

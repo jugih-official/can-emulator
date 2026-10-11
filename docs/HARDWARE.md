@@ -163,6 +163,8 @@ Checked on this bench:
   convenience bus, with no transmit errors, and sends no `0x6B4` there itself,
   before or while the emulator does (2026-10-11, a made-up VIN,
   `WVWZZZ3GZJE000000`).
+- ODIS on the OBD socket does not pick that VIN up when it loads a vehicle
+  project (the same day, with the VIN being sent throughout).
 
 Not checked yet:
 
@@ -177,9 +179,9 @@ Not checked yet:
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.
 - Flashing a control unit end to end.
-- Whether the gateway, a control unit on another bus or a tester makes any use
-  of a `VIN_01` sent on the convenience bus. On a car the gateway is that
-  message's sender, and a tester reads the VIN by diagnosis, not from it.
+- Whether the gateway passes a `VIN_01` sent on the convenience bus on to its
+  other buses, and whether a control unit there makes any use of it. On a car
+  the gateway is that message's sender.
 
 ### Before flashing a control unit
 
