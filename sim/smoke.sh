@@ -54,4 +54,17 @@ out=$(play 'set gateway 0' 'run 2500' 'ser s')
 expect 'nobody acknowledging: errors count' 'tec 128' "$out"
 expect 'wave gives way to the failure mark' ' !|' "$out"
 
+out=$(play 'run 500' 'ser d' 'ser VBENCH0123456789AZ' 'run 700' 'ser s')
+expect 'a typed VIN goes out as three frames' '6B4 [ok ] 00 00 00 00 00 42 45 4E' "$out"
+expect 'the third of them'                   '6B4 [ok ] 02 35 36 37 38 39 41 5A' "$out"
+expect 'and the status says so'              'VIN (6B4): BENCH0123456789AZ, ours' "$out"
+
+out=$(play 'run 500' 'ser VBENCH0123456789AZ' 'run 300' 'ser V-' 'run 300' 'ser d' 'run 700' 'ser s')
+expect 'V- stops it'                         'VIN (6B4): off' "$out"
+if grep -qF '6B4 [' <<<"$out"; then echo "  FAIL  a stopped VIN is still sent"; fail=1; else echo "  ok    and nothing more is sent"; fi
+
+out=$(play 'run 500' 'ser V' 'run 6000' 'ser s')
+expect 'a VIN left half typed is given up'   'VIN (6B4): off' "$out"
+expect 'and the next key is a command again' '--- status ---' "$out"
+
 exit $fail

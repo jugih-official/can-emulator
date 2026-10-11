@@ -139,6 +139,7 @@ On the 12 V side, for that direct case:
 | `0x3C0` | `Klemmen_Status_01` | 4 | 100 ms | Terminal status (S, 15, X, 50). Always sent. |
 | `0x5F0` | `Dimmung_01` | 8 | 500 ms | Display/panel dimming. Sent while Kl. 15 on, unless another node sends it. |
 | `0x6B2` | `Diagnose_01` | 8 | 1000 ms | Odometer + date/time (the MIB clock). Sent while Kl. 15 on, unless another node (a gateway) sends it. |
+| `0x6B4` | `VIN_01` | 8 | 200 ms | The VIN, in three frames in turn. Only after a VIN has been typed on the console (`V`), and unless another node sends it. |
 
 The two MIB support messages are switched off with `ENABLE_MIB_MESSAGES` in
 `config.h`. Their cycle times are plausible defaults rather than measured
@@ -215,8 +216,8 @@ radio, a diagnostic tester, a supply-voltage slider. See
 
 Host-side, no hardware needed. Checks the checksum against 16 reference values
 captured from a real gateway, round-trips every `Dimmung_01` and `Diagnose_01`
-signal through the bit packer, and verifies maxed-out fields don't bleed into
-their neighbours. The same checksum self-test also runs on the Arduino at boot.
+signal through the bit packer, verifies maxed-out fields don't bleed into
+their neighbours, and checks where each VIN character lands in `VIN_01`. The same checksum self-test also runs on the Arduino at boot.
 
 ## Layout
 
@@ -226,6 +227,7 @@ can-emulator.ino     scheduler, button and menu, LCD, serial console, sniffer, M
 config.h             all pin, timing and bitrate constants
 mqb_klemmen.{h,cpp}  Klemmen_Status_01 (0x3C0) and the checksum
 mqb_mib.{h,cpp}      Dimmung_01, Diagnose_01, generic little-endian bit packer
+mqb_vin.{h,cpp}      VIN_01 (0x6B4), the VIN in three frames
 test/                host test harness with an Arduino.h shim
 sim/                 the simulator: the sketch on a PC, the LCD in a browser
 case/                the printed case: HelCAD drawing, STL files, generator

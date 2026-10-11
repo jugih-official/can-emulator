@@ -2,6 +2,7 @@
 #include <cstring>
 #include "mqb_klemmen.h"
 #include "mqb_mib.h"
+#include "mqb_vin.h"
 
 static int g_fail = 0;
 static void check(bool ok, const char *what) {
@@ -117,11 +118,44 @@ static void testClockTick() {
         "cascades second -> minute -> hour -> day");
 }
 
+static void testVin() {
+  printf("VIN_01 (0x6B4)\n");
+  // Not a real car's: the bench's own, with a character at every place told apart.
+  const char vin[] = "BENCH0123456789AZ";
+  uint8_t f[8];
+
+  buildVin01(f, 0, vin);
+  check(f[0] == 0, "frame 0: multiplexer");
+  check(f[1] == 0 && f[2] == 0 && f[3] == 0 && f[4] == 0, "frame 0: component-protection bytes are zero");
+  check(memcmp(f + 5, "BEN", 3) == 0, "frame 0: characters 1..3 in bytes 5..7");
+  printf("  frames:");
+  for (int i = 0; i < 8; i++) printf(" %02X", f[i]);
+
+  buildVin01(f, 1, vin);
+  check(f[0] == 1, "frame 1: multiplexer");
+  check(memcmp(f + 1, "CH01234", 7) == 0, "frame 1: characters 4..10 in bytes 1..7");
+  printf("  |");
+  for (int i = 0; i < 8; i++) printf(" %02X", f[i]);
+
+  buildVin01(f, 2, vin);
+  check(f[0] == 2, "frame 2: multiplexer");
+  check(memcmp(f + 1, "56789AZ", 7) == 0, "frame 2: characters 11..17 in bytes 1..7");
+  printf("  |");
+  for (int i = 0; i < 8; i++) printf(" %02X", f[i]);
+  printf("\n");
+
+  check(vinChar('7') == '7' && vinChar('W') == 'W', "digits and capitals pass");
+  check(vinChar('w') == 'W', "lower case is taken as upper case");
+  check(vinChar('I') == 0 && vinChar('o') == 0 && vinChar('Q') == 0, "I, O and Q are not VIN characters");
+  check(vinChar('-') == 0 && vinChar('\n') == 0 && vinChar(' ') == 0 && vinChar(0) == 0, "nor is anything else");
+}
+
 int main() {
   testKlemmen();
   testDimmung();
   testDiagnose();
   testClockTick();
+  testVin();
   printf("\n%s\n", g_fail ? "TESTS FAILED" : "all tests passed");
   return g_fail ? 1 : 0;
 }

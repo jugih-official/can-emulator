@@ -204,6 +204,44 @@ Example — 2026-08-22 16:45:33, odometer 123456 km:
 
 ---
 
+## `VIN_01` — ID `0x6B4` (1716)
+
+DLC 8, cycle 200 ms per frame (assumed). The vehicle identification number,
+spread over three frames that are told apart by a multiplexer in the low two
+bits of byte 0. **No checksum, no counter.**
+
+| Byte 0 | Bytes 1–4 | Bytes 5–7 |
+|---|---|---|
+| `00` | `KS_Geheimnis_1`…`4` | VIN characters 1–3 |
+| `01` | VIN characters 4–7 | VIN characters 8–10 |
+| `02` | VIN characters 11–14 | VIN characters 15–17 |
+
+The characters are plain ASCII, one per byte.
+
+**On a car the gateway sends this message.** It holds the VIN itself and
+repeats it for the other control units; the DBC names `Gateway_MQB` as the
+sender. So there is no broadcast that tells a gateway its VIN: a gateway is
+given its VIN by a tester, as a diagnostic write. What the emulator can do is
+stand in for a gateway towards the units on its own bus.
+
+`KS_Geheimnis` is the component-protection secret, known to a real gateway and
+its car and not to this project. The emulator sends those four bytes as zero,
+so a unit that checks them will not be satisfied by this message.
+
+Off by default. `V` and the 17 characters on the console start it, `V-` stops
+it, and a reset forgets it. Sent whatever the ignition, and withheld while
+another node sends the ID.
+
+Example — `BENCH0123456789AZ`:
+
+```
+00 00 00 00 00 42 45 4E
+01 43 48 30 31 32 33 34
+02 35 36 37 38 39 41 5A
+```
+
+---
+
 ## Cycle times
 
 The opendbc DBC carries no `GenMsgCycleTime` attributes, so:
@@ -213,9 +251,11 @@ The opendbc DBC carries no `GenMsgCycleTime` attributes, so:
   that rate (999–1001 ms).
 - `0x5F0` at 500 ms is a **plausible default, not a measured value.** The
   gateway alone does not send it.
+- `0x6B4` at 200 ms per frame is **assumed, not measured.** The gateway on the
+  bench does not send it on the convenience bus.
 
 Use the firmware's sniffer (`p`) against a real car to confirm, and adjust
-`DIMMUNG_CYCLE_MS` / `DIAGNOSE_CYCLE_MS` in `config.h`. Cycle accuracy matters:
+`DIMMUNG_CYCLE_MS` / `DIAGNOSE_CYCLE_MS` / `VIN_CYCLE_MS` in `config.h`. Cycle accuracy matters:
 some receivers flag a sender as faulty if a cyclic message drifts more than
 roughly ±10 % from its nominal period.
 
@@ -246,7 +286,8 @@ guess from one captured payload until it has been seen to follow the supply.
 
 ## Adding another message
 
-1. Add the ID, DLC and a `…State` struct to `mqb_mib.h`.
+1. Add the ID, DLC and a `…State` struct to `mqb_mib.h`, or a file pair of
+   its own as `mqb_vin.{h,cpp}` is.
 2. Write a `buildX()` in `mqb_mib.cpp` using `packLE()` — zero the buffer first,
    then pack each signal.
 3. If it has a checksum, reuse `mqbChecksum()` with that message's magic byte;

@@ -19,6 +19,7 @@
 #include "config.h"
 #include "mqb_klemmen.h"
 #include "mqb_mib.h"
+#include "mqb_vin.h"
 #if ENABLE_LCD
 #include <LiquidCrystal.h>
 #endif
@@ -50,6 +51,21 @@ static uint32_t g_nextClockAt    = 0;
 // so ours stand back for as long as the other one is heard.
 static uint32_t g_dimmungHeardAt  = 0;
 static uint32_t g_diagnoseHeardAt = 0;
+
+#if ENABLE_VIN
+#if !ENABLE_SERIAL_CONTROL
+#error "ENABLE_VIN needs the serial console: the VIN is typed there"
+#endif
+// VIN_01. Off until a VIN is typed on the console, and not kept across a
+// reset. Stands back like the two above while another node sends the ID.
+static char     g_vin[MQB_VIN_LENGTH];
+static bool     g_vinOn      = false;
+static uint8_t  g_vinMux     = 0;
+static uint8_t  g_vinTyped   = 0xFF;   // characters taken so far; 0xFF: none being typed
+static uint32_t g_vinTypedAt = 0;
+static uint32_t g_nextVinAt  = 0;
+static uint32_t g_vinHeardAt = 0;
+#endif
 
 // --- what the bus tells us ---------------------------------------------------
 // All "when last seen" stamps are millis() | 1, so that 0 can mean never.
@@ -466,6 +482,9 @@ static void serviceSniffer() {
   // The controller does not receive its own frames, so these are someone else's.
   if (sid == MQB_ID_DIMMUNG_01)  g_dimmungHeardAt  = now | 1;
   if (sid == MQB_ID_DIAGNOSE_01) g_diagnoseHeardAt = now | 1;
+#if ENABLE_VIN
+  if (sid == MQB_ID_VIN_01)      g_vinHeardAt      = now | 1;
+#endif
   if (sid >= 0x700)              g_testerAt        = now | 1;
 #if ENABLE_VOLTAGE
   if (sid == VOLTAGE_CAN_ID && dlc > VOLTAGE_BYTE) {
@@ -538,6 +557,30 @@ static void printStats() {
   if (g_statsFull) Serial.println(F(" WARNING: more IDs seen than SNIFFER_MAX_IDS"));
 }
 
+#if ENABLE_VIN
+static void printVin() {
+  Serial.print(F("  VIN (6B4): "));
+  if (!g_vinOn) { Serial.println(F("off")); return; }
+  Serial.write((const uint8_t *)g_vin, MQB_VIN_LENGTH);
+  Serial.println(recent(g_vinHeardAt, MIB_YIELD_MS) ? F(", bus sends it, ours off") : F(", ours"));
+}
+
+// After 'V': the 17 characters start VIN_01. Anything a VIN cannot hold, a
+// '-' for one, ends the typing and leaves it off.
+static void vinKey(char key) {
+  char c = vinChar(key);
+  if (c) {
+    g_vin[g_vinTyped++] = c;
+    g_vinTypedAt = millis();
+    if (g_vinTyped < MQB_VIN_LENGTH) return;
+    g_vinOn  = true;
+    g_vinMux = 0;
+  }
+  g_vinTyped = 0xFF;
+  printVin();
+}
+#endif
+
 static void printStatus() {
   Serial.println(F("--- status ---"));
   Serial.print(F("  bus init : ")); Serial.println(g_busOk ? F("ok") : F("FAILED"));
@@ -556,6 +599,9 @@ static void printStatus() {
   Serial.print(recent(g_dimmungHeardAt, MIB_YIELD_MS) ? F("bus sends it, ours off") : F("ours"));
   Serial.print(F(" / "));
   Serial.println(recent(g_diagnoseHeardAt, MIB_YIELD_MS) ? F("bus sends it, ours off") : F("ours"));
+#endif
+#if ENABLE_VIN
+  printVin();
 #endif
 #if ENABLE_VOLTAGE
   Serial.print(F("  voltage  : "));
@@ -592,11 +638,23 @@ static void printHelp() {
   Serial.println(F("s status   d toggle tx trace   r toggle rx dump   p rx stats"));
   Serial.println(F("c clear rx stats   +/- dimming   l listen-only   h help"));
   Serial.println(F("b short press   B long press   v what the LCD shows"));
+#if ENABLE_VIN
+  Serial.println(F("V and 17 characters: send that VIN   V- stop"));
+#endif
 }
 
 static void serviceSerial() {
+#if ENABLE_VIN
+  // A VIN left half typed is given up, so that a stray 'V' does not swallow
+  // the commands that follow it.
+  if (g_vinTyped != 0xFF && millis() - g_vinTypedAt > VIN_ENTRY_MS) vinKey(0);
+#endif
   if (!Serial.available()) return;
-  switch (Serial.read()) {
+  char key = (char)Serial.read();
+#if ENABLE_VIN
+  if (g_vinTyped != 0xFF) { vinKey(key); return; }
+#endif
+  switch (key) {
     case '1': setIgnition(true);  break;
     case '0': setIgnition(false); break;
     case 't': setIgnition(!g_state.kl_15); break;
@@ -631,6 +689,10 @@ static void serviceSerial() {
               Serial.println(g_dimmung.kl58xd); break;
     case '-': if (g_dimmung.kl58xd > 10) g_dimmung.kl58xd -= 10;
               Serial.println(g_dimmung.kl58xd); break;
+#endif
+#if ENABLE_VIN
+    // Off at once: the characters that follow overwrite the VIN being sent.
+    case 'V': g_vinOn = false; g_vinTyped = 0; g_vinTypedAt = millis(); break;
 #endif
     case 'h': printHelp(); break;
     default: break;
@@ -1018,6 +1080,9 @@ void setup() {
   g_nextDiagnoseAt = now;
   g_nextClockAt    = now;
 #endif
+#if ENABLE_VIN
+  g_nextVinAt = now;
+#endif
 #if ENABLE_LCD
   g_nextLcdAt = now;
   g_nextFpsAt = now;
@@ -1053,6 +1118,19 @@ void loop() {
     uint8_t frame[MQB_DLC_DIAGNOSE_01];
     buildDiagnose01(frame, g_clock);
     sendFrame(MQB_ID_DIAGNOSE_01, MQB_DLC_DIAGNOSE_01, frame);
+  }
+#endif
+
+#if ENABLE_VIN
+  // The three frames of VIN_01 in turn, whatever the ignition: a car's gateway
+  // sends them for as long as the bus is awake. The next one follows only a
+  // frame that went out, so the three stay in order.
+  if (due(g_nextVinAt, VIN_CYCLE_MS) && g_vinOn && !recent(g_vinHeardAt, MIB_YIELD_MS)) {
+    uint8_t frame[MQB_DLC_VIN_01];
+    buildVin01(frame, g_vinMux, g_vin);
+    if (sendFrame(MQB_ID_VIN_01, MQB_DLC_VIN_01, frame)) {
+      g_vinMux = (uint8_t)((g_vinMux + 1) % MQB_VIN_FRAMES);
+    }
   }
 #endif
 

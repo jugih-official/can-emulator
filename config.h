@@ -111,6 +111,17 @@
 // withheld until that one has been silent for this long.
 #define MIB_YIELD_MS          5000
 
+// VIN_01 (0x6B4): the vehicle identification number, in three frames sent in
+// turn. On a car the gateway sends it. Here it starts when a VIN is typed on
+// the console ('V' and the 17 characters), stops with 'V-', and is forgotten
+// at a reset: a number made up for the bench must not come back by itself.
+// Withheld like the two above while another node sends it. The DBC gives no
+// cycle time for it, so this one is assumed. Needs the serial console.
+#define ENABLE_VIN            1
+#define VIN_CYCLE_MS          200
+// A VIN left half typed is given up after this long.
+#define VIN_ENTRY_MS          5000
+
 // Remember Klemme 15, Klemme X and listen-only in EEPROM and come back up with
 // them after a reset or a power cut. With 0 every start is ignition off.
 #define REMEMBER_STATE        1

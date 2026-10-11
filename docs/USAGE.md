@@ -61,8 +61,8 @@ Runs the host tests and then a real AVR compile with `--warnings all`. A clean
 run ends with the footprint:
 
 ```
-Sketch uses 15214 bytes (47%) of program storage space. Maximum is 32256 bytes.
-Global variables use 768 bytes (37%) of dynamic memory, leaving 1280 bytes...
+Sketch uses 15888 bytes (49%) of program storage space. Maximum is 32256 bytes.
+Global variables use 801 bytes (39%) of dynamic memory, leaving 1247 bytes...
 ```
 
 RAM is the tighter of the two budgets; raising `SNIFFER_MAX_IDS` costs 12 bytes
@@ -80,6 +80,7 @@ MCP2515 init: ok
 s status   d toggle tx trace   r toggle rx dump   p rx stats
 c clear rx stats   +/- dimming   l listen-only   h help
 b short press   B long press   v what the LCD shows
+V and 17 characters: send that VIN   V- stop
 ```
 
 Both `PASS` and `ok` are required.
@@ -116,12 +117,14 @@ sniffing a real car.
 | `l` | Toggle listen-only: nothing is transmitted, not even acknowledge bits. The mode for a real car. |
 | `b` / `B` | A short / long press of the button, for driving the menu from the console |
 | `v` | Print the two lines the LCD is showing |
+| `V` + 17 characters | Send that VIN as `VIN_01` (`0x6B4`), until `V-` or a reset. See [Sending a VIN](#sending-a-vin). |
 | `h` | Help |
 
 ### Reading the status
 
 ```
   5F0 / 6B2: ours / bus sends it, ours off
+  VIN (6B4): off
   voltage  : 12.0 V (source not verified)
   tester   : present
   awake    : 10
@@ -137,6 +140,8 @@ sniffing a real car.
   another node is heard sending one, a gateway for instance, the emulator's own
   is withheld until that node has been silent for `MIB_YIELD_MS`: two senders of
   one ID with different payloads would collide.
+- `VIN (6B4)` — `off`, or the VIN being sent. Like the two above it reads
+  `bus sends it, ours off` while another node sends that ID.
 - `rx 29-bit` — frames with an extended ID, which on MQB is network management
   (`0x1B0000xx`) and some `0x17xxxxxx` messages. They are counted here and
   shown by `r`, but the `p` table holds 11-bit IDs only.
@@ -314,6 +319,32 @@ pair itself is open or swapped.
 If it boots and then sleeps after a few seconds, it wants cyclic messages this
 project doesn't send yet. Sniff a real car to find out which — see below.
 
+### Sending a VIN
+
+On a car the gateway sends the vehicle identification number round the bus as
+`VIN_01` (`0x6B4`). The emulator can send it instead, for a unit on a bench
+without a gateway, or to see what a unit does with one:
+
+```
+VBENCH0123456789AZ        V and the 17 characters, no space
+  VIN (6B4): BENCH0123456789AZ, ours
+V-                        stops it
+  VIN (6B4): off
+```
+
+- It is not stored. A reset comes back with no VIN, so a number made up for
+  the bench cannot return by itself.
+- Letters may be typed in lower case. `I`, `O` and `Q` are not VIN characters;
+  one of those, or anything else a VIN cannot hold, ends the typing with the
+  VIN off. A VIN left half typed is given up after 5 s (`VIN_ENTRY_MS`): until
+  then the keys go into the VIN, not to the commands.
+- This does not give a gateway a VIN. A gateway is the sender of this message,
+  not a listener; its own VIN is written by a tester. And the four
+  component-protection bytes go out as zero, see
+  [PROTOCOL.md](PROTOCOL.md#vin_01--id-0x6b4-1716).
+- With a gateway on the bus that sends `0x6B4` itself, the emulator's stands
+  back, as for `0x5F0` and `0x6B2`.
+
 ### Finding out what a module actually needs
 
 Receive statistics are collected continuously, so you don't have to be dumping
@@ -370,6 +401,9 @@ All tunables live in [`config.h`](../config.h).
 | `KL50_PULSE_MS` | 800 | Starter request pulse length |
 | `ENABLE_MIB_MESSAGES` | 1 | Send `0x5F0` and `0x6B2` |
 | `MIB_YIELD_MS` | 5000 | Withhold either of them this long after another node sent it |
+| `ENABLE_VIN` | 1 | The `V` command: `VIN_01` (`0x6B4`) with a VIN typed on the console. Needs the serial console. |
+| `VIN_CYCLE_MS` | 200 | One of its three frames this often. Assumed, not measured. |
+| `VIN_ENTRY_MS` | 5000 | A VIN left half typed is given up after this |
 | `HEALTH_CHECK_MS` | 1000 | How often the controller's mode is checked |
 | `BUS_RETRY_MS` | 3000 | How often a controller that does not answer is tried again |
 | `ENABLE_SERIAL_CONTROL` | 1 | Serial console; disable to save flash |
