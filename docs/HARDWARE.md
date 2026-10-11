@@ -163,8 +163,12 @@ Checked on this bench:
 Not checked yet:
 
 - The supply voltage on the display. It is read from byte 0 of `0x663`, which
-  held `0x78` (120) in one capture on this bench. The supply voltage was not
-  noted at the time, so that is a guess from one number, not a decoded signal. Turn the supply and see whether the display follows.
+  has held `0x78` (120, shown as 12.0 V) in every capture on this bench. On
+  2026-10-11 the supply stood at 12.49 V and the display still said 12.0 V:
+  either that byte is not the supply voltage, or the gateway reads half a volt
+  low. Byte 5 of the same frame flickers between `9A` and `9B`, the way a
+  measured value does, and nothing else on the convenience bus moves. It is
+  settled only when the supply is turned and one of the two follows.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.
