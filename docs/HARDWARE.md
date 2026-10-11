@@ -159,6 +159,10 @@ Checked on this bench:
 - The tester's "tester present" (`0x700`, every 2 s) appears on the convenience
   bus, so the gateway routes diagnostic requests across.
 - The gateway sends `0x6B2` every 1000 ms.
+- The gateway acknowledges `VIN_01` (`0x6B4`) sent by the emulator on the
+  convenience bus, with no transmit errors, and sends no `0x6B4` there itself,
+  before or while the emulator does (2026-10-11, a made-up VIN,
+  `WVWZZZ3GZJE000000`).
 
 Not checked yet:
 
@@ -173,6 +177,9 @@ Not checked yet:
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.
 - Flashing a control unit end to end.
+- Whether the gateway, a control unit on another bus or a tester makes any use
+  of a `VIN_01` sent on the convenience bus. On a car the gateway is that
+  message's sender, and a tester reads the VIN by diagnosis, not from it.
 
 ### Before flashing a control unit
 
