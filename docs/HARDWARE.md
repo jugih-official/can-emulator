@@ -196,6 +196,17 @@ Measured with the emulator's sniffer on the convenience bus, gateway alone:
 | `1B000010` (29-bit, network management) | 200 ms |
 | `17332310` (29-bit) | about 1000 ms |
 
+On 2026-10-11 the same list came back with a tester on the OBD socket and an
+exterior-sound control unit (diagnostic address `C0`) on the powertrain pair,
+with one more ID: `67C` every 1000 ms, payload `00 90 80 00 00 00 00 00`.
+Which of the two brought it is not known. Switching the ignition on changed
+byte 5 of the gateway's network-management frame from `00` to `10` and
+brought one `17FC0114` (29-bit); no 11-bit ID came or went.
+
+The control unit itself did not show, ignition off or on: no frame of its own
+and only `10` in the awake list. The sniffer and the awake list see the pair
+the emulator is wired to and nothing behind the gateway.
+
 On the diagnostic pair it sends only its network-management frame until a
 tester speaks. That bus is the tester's: the emulator has no business
 transmitting there, and with nothing else on the pair to acknowledge, the
