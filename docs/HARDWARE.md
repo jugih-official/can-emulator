@@ -169,15 +169,22 @@ Checked on this bench:
 Not checked yet:
 
 - The supply voltage on the display. It is read from byte 5 of `0x663` at
-  0.05 V per bit plus 5 V. On 2026-10-11 that byte flickered between `9A` and
-  `9B`, 12.70 and 12.75 V, while ODIS showed the gateway's measured value
-  *Battery voltage* (`$2A07`) as 12.720 V. That is agreement at one voltage,
-  to within one step; it is settled when the supply is turned and the byte
-  follows. Two things to keep in mind until then: the same ODIS page showed a
-  power value of 155 A, and `9B` is 155, though a fixed value would not
-  flicker; and the bench supply's own display said 12.49 V that day, a quarter
-  of a volt under what the gateway measures. Byte 0 of the frame, the first
-  guess, is a constant `0x78`.
+  0.05 V per bit plus 5 V, and **that may not be the voltage at all.** Two
+  readings against the gateway's measured value *Battery voltage* (`$2A07`) in
+  ODIS, 2026-10-11:
+
+  | ODIS `$2A07` | Byte 5 | As 0.05 V per bit + 5 V |
+  |---|---|---|
+  | 12.720 V | `9A` and `9B` in turn | 12.70 / 12.75 V |
+  | 12.810 V | `9B`, steady over 100 frames | 12.75 V, where `9C` (12.80 V) was due |
+
+  So over a rise of 90 mV the byte moved by less than the one to two steps
+  the scaling asks for. The same ODIS page shows *Power consumption…* as
+  155 A, both times, and `9B` is 155: the byte may be that value, drifting by
+  one with the voltage. A change of half a volt or more settles it, a diode in
+  the gateway's supply wire for one: a voltage follows by ten steps, a current
+  estimate does not. The bench supply's own display said 12.49 V that day.
+  Byte 0 of the frame, the first guess, is a constant `0x78`.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.

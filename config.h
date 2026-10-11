@@ -58,9 +58,11 @@
 // J533 gateway sends every 100 ms, at 0.05 V per bit plus 5 V. No public DBC
 // names that frame; the scaling is the one the older PQ platform uses for its
 // battery voltage. On the bench the byte flickered between 0x9A and 0x9B, which
-// is 12.70 and 12.75 V, while the gateway's own measured value read 12.720 V.
-// That is one voltage. Until the value has been seen to follow the supply up
-// and down, leave VOLTAGE_VERIFIED at 0 and the display marks it with '?'.
+// is 12.70 and 12.75 V, while the gateway's own measured value read 12.720 V;
+// at 12.810 V it sat at 0x9B, one step short. It may be something else: the
+// gateway also reports a power value of 155 A, and 0x9B is 155. Until the
+// value has been seen to follow the supply up and down, leave VOLTAGE_VERIFIED
+// at 0 and the display marks it with '?'.
 // (Byte 0 of the same frame, the first guess, is a constant 0x78.)
 #define ENABLE_VOLTAGE        1
 #define VOLTAGE_CAN_ID        0x663

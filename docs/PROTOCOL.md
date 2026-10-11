@@ -288,10 +288,16 @@ That measured value is what the broadcast was compared against. The gateway's
 `78 28 20 0E 1F 9B 2C 00` in turn: byte 5 flickering between 154 and 155. With
 the PQ scaling above, 0.05 V per bit plus 5 V, those are 12.70 and 12.75 V,
 one step either side of the 12.720 V the gateway reported. Hence the default
-in `config.h`: byte 5 of `0x663`, 50 mV per bit, 5000 mV offset. It is one
-point on a line, so it stays marked unverified until the value has been seen
-to follow the supply. Byte 0, the earlier guess at 0.1 V per bit, is a
-constant `0x78`.
+in `config.h`: byte 5 of `0x663`, 50 mV per bit, 5000 mV offset.
+
+A second reading the same day did not bear it out. With the gateway at
+12.810 V the byte sat at 155 for a hundred frames, where 156 was due. And the
+ODIS page that shows the voltage shows a power value of 155 A beside it, at
+both readings: the byte may be that number, moving by one as the voltage
+moves, and the fit to the PQ scaling a coincidence of 12.75 lying between the
+two voltages. It stays marked unverified, and should be taken as open, until
+the supply has been changed by half a volt or more. Byte 0, the earlier guess
+at 0.1 V per bit, is a constant `0x78`.
 
 ## Adding another message
 
