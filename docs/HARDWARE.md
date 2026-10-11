@@ -183,8 +183,18 @@ Not checked yet:
   155 A, both times, and `9B` is 155: the byte may be that value, drifting by
   one with the voltage. A change of half a volt or more settles it, a diode in
   the gateway's supply wire for one: a voltage follows by ten steps, a current
-  estimate does not. The bench supply's own display said 12.49 V that day.
-  Byte 0 of the frame, the first guess, is a constant `0x78`.
+  estimate does not. Byte 0 of the frame, the first guess, is a constant
+  `0x78`.
+
+  The gateway has a second voltage, *Voltage terminal 30* (`$0286`), which
+  read 12.6 V beside the 12.810 V above. It is shown to a tenth of a volt and
+  agrees with what the tester's interface measures at the OBD socket, so it is
+  taken here as the gateway's own measurement at its supply pins. `$2A07`
+  belongs to the battery monitoring, which has no battery sensor to talk to on
+  this bench: its neighbours read 15.0 V and "Initialization". The bench
+  supply's own display said 12.49 V. Terminal 30 is the value the display is
+  after, and no byte on the convenience bus is 126, which 12.6 V would be at
+  0.1 V per bit.
 - Whether the gateway repeats terminal status onto the infotainment bus, so
   that a radio there wakes with the emulator on the convenience bus. The bus
   monitor on pins 10 / 20 answers it: look for `3C0`.

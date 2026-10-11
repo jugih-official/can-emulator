@@ -282,6 +282,8 @@ public sources turned up:
   RDID column: in the gateway on the bench, *Battery voltage* is `$2A07`
   (12.720 V when it was read), next to *Specified generator voltage* `$2A00`
   and *Battery voltage at rest* `$2A10`, which both read 15.0 V there.
+  *Voltage terminal 30* is `$0286`, shown to a tenth of a volt: 12.6 V while
+  `$2A07` read 12.810 V.
 
 That measured value is what the broadcast was compared against. The gateway's
 `0x663`, every 100 ms, held `78 28 20 0E 1F 9A 2C 00` and
