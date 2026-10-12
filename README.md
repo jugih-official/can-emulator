@@ -1,4 +1,4 @@
-# VW MQB Ignition switch emulator (and few other things,too)
+# VW MQB Ignition switch emulator (and few other features, too)
 
 This project is based on Aliexpress MIB2/3 bench harness. it comes with gateway (low) a 12 V psu and som connectors. 
 
