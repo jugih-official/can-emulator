@@ -1,8 +1,10 @@
 # VW MQB Ignition switch emulator (and few other features, too)
 
-This project is based on Aliexpress MIB2/3 bench harness. it comes with gateway (low) a 12 V psu and som connectors. 
+This project is based on Aliexpress MIB2/3 bench harness. The harness comes with gateway (low), a 12 V psu and some connectors. 
 
-I've added 5 V psu, an USB block for 5F, a rail for easy tapping on to every CAN, LIN and power. Added few connector for different CU's as well. 
+I've added 5 V psu, an USB block for 5F, a rail for easy tapping onto every CAN, LIN and the power. Added few connectors for different CU's as well. 
+
+# Contents of the ign on emulator
 
 Arduino Uno + MCP2515. Sends the MQB ignition message (`Klemmen_Status_01`,
 `0x3C0`) on CAN, 500 kbit/s. Ignition is switched with a push button or over
