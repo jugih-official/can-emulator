@@ -101,11 +101,9 @@ Two printed parts, snap fit, no screws. 96 × 119.5 × 35 mm.
 
 ![Base and lid laid out for printing](docs/img/case-print.jpg)
 
-<img src="docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
-
 <img src="docs/img/case-printed-open.jpg" width="420" alt="The printed case, open">
 
-
+<img src="docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
 
 Files in [`case/`](case/README.md):
 
