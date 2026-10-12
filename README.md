@@ -1,4 +1,4 @@
-# VW MQB Klemme 15 emulator
+# VW MQB Ignition switch emulator
 
 Arduino Uno + MCP2515. Sends the MQB ignition message (`Klemmen_Status_01`,
 `0x3C0`) on CAN, 500 kbit/s. Ignition is switched with a push button or over
