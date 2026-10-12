@@ -200,6 +200,8 @@ what to measure first.
 The sketch also runs on a PC, with the LCD drawn in a browser and a simulated
 bench around it:
 
+![The simulator in a browser: the LCD reading Ign on, the bench's switches, the serial console and every frame on the bus](docs/img/simulator.png)
+
 ```sh
 ./sim/run.sh        # then open http://127.0.0.1:8515/
 ```
@@ -236,7 +238,7 @@ test/                host test harness with an Arduino.h shim
 sim/                 the simulator: the sketch on a PC, the LCD in a browser
 case/                the printed case: HelCAD drawing, STL and 3MF files, generator
 docs/                hardware, usage and protocol documentation
-docs/img/            the wiring drawings (SVG), the bench photo, pictures of the case
+docs/img/            the wiring drawings (SVG), the bench photo, pictures of the case and the simulator
 ```
 
 The `mqb_*` files are free of Arduino dependencies so they stay host-testable.

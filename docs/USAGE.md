@@ -437,6 +437,8 @@ power-up and drifts with the AVR's ceramic resonator.
 
 ## The simulator
 
+![The simulator: the LCD, the bench's switches, the serial console and the frames on the bus](img/simulator.png)
+
 ```sh
 ./sim/run.sh
 ```
