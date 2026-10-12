@@ -26,10 +26,6 @@ serial. A 16×2 LCD shows the state.
 
 Klemme 30 (+12 V) is a wire.
 
-Without a gateway the emulator goes straight on the module's CAN pair:
-
-![Bench wiring without a gateway](docs/img/bench-overview.svg)
-
 ## Wiring
 
 ![Arduino Uno to MCP2515 module](docs/img/wiring-uno-mcp2515.svg)
