@@ -42,10 +42,10 @@ const double UnoLength = 68.58, UnoWidth = 53.34, UnoHole = 3.2;
 // angled plugs, and this number is what brings the whole case down.
 const double UnoStack = 8.5 + 14.0 + 3.4;
 
-// MCP2515 + TJA1050 module, the blue one. MEASURE YOURS: sellers give 40 x 28
-// and 44 x 28, and the one on the bench looks like 44 in its photograph. It
+// MCP2515 + TJA1050 module, the blue one: 40 x 28, measured on the bench's
+// own. Sellers also give 44 x 28, so measure another one before printing. It
 // is held by its edges, not its holes, so only these two numbers matter.
-const double McpLength = 44.0, McpWidth = 28.0;
+const double McpLength = 40.0, McpWidth = 28.0;
 
 // 1602A display, from the module drawing: an 80 x 36 x 1.6 board, four 2.5 mm
 // holes 75 x 31 apart, a viewing area of 64.5 x 16.4, the frame's front 7.0

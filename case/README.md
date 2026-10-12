@@ -52,7 +52,7 @@ bottom of the plan.
   faces the cable space and its power and analog headers face the CAN module.
 - **The CAN module** lies beside the Uno with its screw terminal toward the
   cable space, so the CAN pair runs straight to the hole.
-- Behind the CAN module is a free corner of 28 × 23 mm for the contrast
+- Behind the CAN module is a free corner of 28 × 27 mm for the contrast
   potentiometer and the splices.
 
 ### Why it is 35 mm high
@@ -84,7 +84,7 @@ refuses a height at which the plug and the display's wiring would meet.
 |---|---|---|
 | Arduino Uno R3 | Board 68.58 × 53.34 mm; four 3.2 mm holes at (13.97, 2.54), (15.24, 50.80), (66.04, 7.62), (66.04, 35.56) from the corner by the DC jack; USB socket centred 38.1 mm up that edge | Arduino's own board file for the Uno Rev3 (`arduino_Uno_Rev3-02-TH.brd`), read directly |
 | 1602A display | Board 80.0 × 36.0 × 1.6 mm; four 2.5 mm holes 75.0 × 31.0 apart; viewing area 64.5 × 16.4; frame 71.3 × 26.3, its front 7.0 above the board's face; sixteen pins at 2.54, the first 8.0 from the left edge, 2.5 from the top | The outline drawing in the Xiamen Amotec ADM1602K specification, the common 1602 module |
-| MCP2515 + TJA1050 module | Board 44 × 28 mm | Sellers disagree: one page gives 44 × 28, Components101 "about 40 × 28", and the module in the bench photo scales to about 44. **Measure yours.** |
+| MCP2515 + TJA1050 module | Board 40 × 28 mm | Measured on the bench's own module. Some sellers give 44 × 28: measure another one before printing. |
 | Dupont plug, pin socket | 14.0 and 8.5 mm tall | Common figures, not looked up for this build |
 | USB-C plug | 6.5 mm thick, its top 4.85 mm above the board it is plugged into | The usual overmould; not measured |
 
@@ -116,7 +116,7 @@ a chamfer.
 
 ## Before you print
 
-1. **Measure the CAN module's board.** If it is not 44 × 28 mm, change
+1. **Measure the CAN module's board.** If it is not 40 × 28 mm, change
    `McpLength` and `McpWidth` in `gen/Program.cs` and run the generator again.
 2. **Look at which side of the display its pins are on.** The lid sits 7 mm in
    front of the display's board. A header soldered with its pins to the
