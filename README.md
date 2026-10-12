@@ -4,7 +4,7 @@ This project is based on Aliexpress MIB2/3 bench harness. The harness comes with
 
 I've added 5 V psu, an USB block for 5F, a rail for easy tapping onto every CAN, LIN and the power. Added few connectors for different CU's as well. 
 
-# Contents of the ign on emulator
+## Contents of the ign on emulator
 
 Arduino Uno + MCP2515. Sends the MQB ignition message (`Klemmen_Status_01`,
 `0x3C0`) on CAN, 500 kbit/s. Ignition is switched with a push button or over
