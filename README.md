@@ -2,7 +2,7 @@
 
 This project is based on Aliexpress MIB2/3 bench harness. The harness comes with gateway (low), a 12 V psu and some connectors. 
 
-I've added 5 V psu, an USB block for 5F, a rail for easy tapping onto every CAN, LIN and the power. Added few connectors for different CU's as well. 
+I've added 5 V psu, an USB block for 5F, a rail for easy tapping onto every CAN, LIN and the power. Added few connectors for connecting different CU's as well. 
 
 ## Contents of the ign on emulator
 
@@ -24,7 +24,7 @@ serial. A 16×2 LCD shows the state.
 | USB module | Head unit, by USB data cable. +12 V, +5 V, ground |
 | 12 V supply | Gateway pins 1–2 (+), 11–12 (−), and every unit |
 
-Klemme 30 (+12 V) is a wire. Only Klemme 15 is sent over CAN.
+Klemme 30 (+12 V) is a wire.
 
 Without a gateway the emulator goes straight on the module's CAN pair:
 
@@ -145,7 +145,7 @@ The same sketch compiled for a PC, with the LCD in a browser.
 
 ## Safety
 
-Do not send `0x3C0` into a complete car: the car's gateway already sends it.
+Do not send `0x3C0` into a complete car as the gateway of the car already sends it.
 On a car, use listen-only mode (`l` on the console).
 
 ## Sources
