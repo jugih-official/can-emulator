@@ -97,7 +97,11 @@ data. A byte that changes blinks for 3 s.
 
 ## Case
 
-Two printed parts, snap fit, no screws. 96 × 119.5 × 35 mm. Not printed yet.
+Two printed parts, snap fit, no screws. 96 × 119.5 × 35 mm.
+
+<img src="docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
+
+<img src="docs/img/case-printed-open.jpg" width="420" alt="The printed case, open">
 
 ![Case closed](docs/img/case-closed.jpg)
 

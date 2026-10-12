@@ -16,9 +16,14 @@ HelCAD with that file open.
 
 ![Ready for the printer: the base as drawn and the lid turned over beside it, as HelCAD's Orient leaves them](../docs/img/case-print.jpg)
 
-**This has not been printed yet.** Every number below comes from a drawing or a
-data sheet, not from a part held against a caliper, and the three checks under
-[Before you print](#before-you-print) are there for that reason.
+Printed:
+
+<img src="../docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
+
+<img src="../docs/img/case-printed-open.jpg" width="420" alt="The printed case, open">
+
+Boards differ between makers: go through the three checks under
+[Before you print](#before-you-print) first.
 
 ## What is here
 
