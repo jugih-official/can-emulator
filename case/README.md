@@ -10,9 +10,11 @@ It is drawn for [HelCAD](https://sihilisko.com/helcad/). The drawing in this
 folder opens in it as it is; the pictures here were taken in a local build of
 HelCAD with that file open.
 
-![The closed case in HelCAD: the lid with the display's window, the cable hole in the lower side](../docs/img/case-closed.png)
+![The closed case in HelCAD: the lid with the display's window, the cable hole in the lower side](../docs/img/case-closed.jpg)
 
-![The lid's layer switched off: the Uno, the CAN module and the display in their places](../docs/img/case-open.png)
+![The lid's layer switched off: the Uno, the CAN module and the display in their places](../docs/img/case-open.jpg)
+
+![Ready for the printer: the base as drawn and the lid turned over beside it, as HelCAD's Orient leaves them](../docs/img/case-print.jpg)
 
 **This has not been printed yet.** Every number below comes from a drawing or a
 data sheet, not from a part held against a caliper, and the three checks under
@@ -25,6 +27,7 @@ data sheet, not from a part held against a caliper, and the three checks under
 | `can-emulator-case.sihicad.json` | The HelCAD drawing: base, lid and the three boards as blocks, assembled. Layers `Case base`, `Case lid` and `Boards`; switch the lid's off to look inside. |
 | `can-emulator-case-base.stl` | The base as it lies on the printer bed |
 | `can-emulator-case-lid.stl` | The lid, turned outside-down for printing |
+| `can-emulator-case-print.3mf` | Both halves on one printer bed, each turned the way it prints and named: HelCAD's **Export 3D printing** of the drawing, without the boards. A slicer opens it as it is. |
 | `can-emulator-case-base.sihicad.json`, `…-lid.sihicad.json` | The same two parts, each as a drawing of its own |
 | `gen/` | The program that writes all of the above from the numbers at its top |
 

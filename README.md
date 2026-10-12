@@ -184,11 +184,14 @@ button's wires. The lid and the boards snap in; there are no screws. It
 measures 96 × 119.5 × 35 mm, with the corners rounded to 8.8 mm and a bevel
 round the top and bottom edges.
 
-![The closed case in HelCAD](docs/img/case-closed.png)
+![The closed case in HelCAD: the lid with the display's window, the cable hole in the lower side](docs/img/case-closed.jpg)
 
-![The case with the lid's layer off: Uno, CAN module and display in place](docs/img/case-open.png)
+![The lid's layer off: the Uno, the CAN module and the display in their places](docs/img/case-open.jpg)
 
-The HelCAD drawing, the two STL files and the program that generates them are
+![Ready for the printer: the base as drawn and the lid turned over beside it](docs/img/case-print.jpg)
+
+The HelCAD drawing, the files for the printer (an STL of each half, and one
+3MF with both laid out on the bed) and the program that generates them are
 in [`case/`](case/README.md). It has not been printed yet; that page lists
 what to measure first.
 
@@ -231,7 +234,7 @@ mqb_mib.{h,cpp}      Dimmung_01, Diagnose_01, generic little-endian bit packer
 mqb_vin.{h,cpp}      VIN_01 (0x6B4), the VIN in three frames
 test/                host test harness with an Arduino.h shim
 sim/                 the simulator: the sketch on a PC, the LCD in a browser
-case/                the printed case: HelCAD drawing, STL files, generator
+case/                the printed case: HelCAD drawing, STL and 3MF files, generator
 docs/                hardware, usage and protocol documentation
 docs/img/            the wiring drawings (SVG), the bench photo, pictures of the case
 ```

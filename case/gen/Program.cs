@@ -6,6 +6,7 @@
 //                                         boards as blocks, assembled, on layers
 //   can-emulator-case-base.stl            the base, as it lies on the printer bed
 //   can-emulator-case-lid.stl             the lid, turned outside-down for printing
+//   can-emulator-case-print.3mf           both halves laid out on one printer bed
 //   can-emulator-case-base.sihicad.json   the same two, each as a drawing of
 //   can-emulator-case-lid.sihicad.json    its own
 //
@@ -328,6 +329,14 @@ new AddEntityCommand(lidSolid).Execute(drawing);
 foreach (var board in boards) new AddEntityCommand(board).Execute(drawing);
 var drawingsWritten = 0;
 WriteDrawing("can-emulator-case", drawing, [baseSolid, lidSolid, .. boards]);
+
+// Both halves on one printer bed, as HelCAD's Export 3D printing lays them:
+// each turned the way it prints, side by side and named. A slicer opens it as
+// it is. The boards are left out: they are bought, not printed.
+var plan = PrintPreparation.Prepare(drawing, [baseSolid.Id, lidSolid.Id]);
+File.WriteAllBytes(Path.Combine(outDir, "can-emulator-case-print.3mf"),
+    ThreeMfWriter.WritePlate(plan, "can-emulator-case").Content);
+Console.WriteLine($"can-emulator-case-print.3mf: {plan.Summary()}");
 
 // A drawing as HelCAD saves it, except that it comes out the same every time:
 // HelCAD names each object by a random number and keeps them in no order, so
