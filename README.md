@@ -65,6 +65,30 @@ bytes 1–3 and the constant `0xC3`.
 4. Serial console: 115200 baud.
 5. Short press of the button, or `1` on the console: ignition on. Long press: menu.
 
+## Button and menu
+
+| Screen | Short press | Long press |
+|---|---|---|
+| Home | Ignition on / off | Open the menu |
+| Menu | Next item | Act on the item |
+| Bus monitor | Next ID | Back to the menu |
+
+| Menu item | Long press |
+|---|---|
+| `Kl X` | Klemme X on / off |
+| `Kl 50 crank` | Starter request while held. Needs ignition on |
+| `Dimming` | +10 per step, 10–250 |
+| `Clock hour` | +1 hour |
+| `Clock minute` | +1 minute |
+| `Bus monitor` | Opens the bus monitor |
+| `Listen-only` | On / off |
+| `Health` | Shows error counters |
+| `Back` | Home screen |
+
+Bus monitor pages: frames per second and ID count, units awake (network
+management node addresses), then one page per ID with its interval and latest
+data. A byte that changes blinks for 3 s.
+
 ## Case
 
 Two printed parts, snap fit, no screws. 96 × 119.5 × 35 mm. Not printed yet.
