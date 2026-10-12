@@ -95,15 +95,17 @@ data. A byte that changes blinks for 3 s.
 
 Two printed parts, snap fit, no screws. 96 × 119.5 × 35 mm.
 
-<img src="docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
-
-<img src="docs/img/case-printed-open.jpg" width="420" alt="The printed case, open">
-
 ![Case closed](docs/img/case-closed.jpg)
 
 ![Case open, boards in place](docs/img/case-open.jpg)
 
 ![Base and lid laid out for printing](docs/img/case-print.jpg)
+
+<img src="docs/img/case-printed-closed.jpg" width="420" alt="The printed case, closed">
+
+<img src="docs/img/case-printed-open.jpg" width="420" alt="The printed case, open">
+
+
 
 Files in [`case/`](case/README.md):
 
